@@ -3,12 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routes import data_routes
 
 app = FastAPI(
-    title="API de Traitement de Données",
-    description="API REST pour le traitement et l'analyse de données",
+    title="Data Processing API",
+    description="REST API for data processing and data analysis",
     version="1.0.0"
 )
 
-# Configuration CORS
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,7 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inclure les routes
+# Include routes
 app.include_router(data_routes.router, prefix="/api/v1")
 
 if __name__ == "__main__":

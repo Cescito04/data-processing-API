@@ -13,7 +13,7 @@ class DataService:
         self.database_url = database_url
 
     def save_dataframe(self, df: pd.DataFrame, table_name: str = 'data_table') -> bool:
-        """Sauvegarde un DataFrame dans la base de données SQLite."""
+        """Saves a DataFrame to the SQLite database."""
         if not validate_dataframe(df):
             return False
         
@@ -25,7 +25,7 @@ class DataService:
             return False
 
     def get_dataframe(self, table_name: str = 'data_table') -> Optional[pd.DataFrame]:
-        """Récupère les données de la base de données sous forme de DataFrame."""
+        """Retrieves data from the database as a DataFrame."""
         try:
             with sqlite3.connect(self.database_url) as conn:
                 return pd.read_sql_query(f"SELECT * FROM {table_name}", conn)
@@ -33,7 +33,7 @@ class DataService:
             return None
 
     def get_statistics(self, table_name: str = 'data_table') -> Optional[Dict[str, Any]]:
-        """Calcule les statistiques sur les données."""
+        """Calculates statistics on the data."""
         df = self.get_dataframe(table_name)
         if df is None:
             return None
@@ -41,7 +41,7 @@ class DataService:
 
     def filter_data(self, column: str, value: Any, operator: str = 'equals',
                     table_name: str = 'data_table') -> Optional[pd.DataFrame]:
-        """Filtre les données selon les critères spécifiés."""
+        """Filters the data according to specified criteria."""
         df = self.get_dataframe(table_name)
         if df is None:
             return None
@@ -52,7 +52,7 @@ class DataService:
 
     def apply_transformations(self, transformations: List[Dict[str, Any]],
                             table_name: str = 'data_table') -> Optional[pd.DataFrame]:
-        """Applique une série de transformations aux données."""
+        """Applies a series of transformations to the data."""
         df = self.get_dataframe(table_name)
         if df is None:
             return None

@@ -32,7 +32,7 @@ async def get_statistics():
     try:
         stats = data_service.get_statistics()
         if stats is None:
-            raise HTTPException(status_code=404, detail="Aucune donnée disponible")
+            raise HTTPException(status_code=404, detail="No data available")
         return StatisticsResponse(
             count=stats['basic_stats']['count'],
             columns=list(stats['basic_stats'].keys()),
@@ -74,7 +74,7 @@ async def export_data(format: str = Path(..., regex="^(csv|json)$")):
     try:
         df = data_service.get_dataframe()
         if df is None:
-            raise HTTPException(status_code=404, detail="Aucune donnée disponible")
+            raise HTTPException(status_code=404, detail="No data available")
         
         if format == "csv":
             return Response(

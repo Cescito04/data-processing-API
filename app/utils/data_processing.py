@@ -3,19 +3,19 @@ import numpy as np
 from typing import Dict, List, Any, Optional
 
 def validate_dataframe(df: pd.DataFrame) -> bool:
-    """Vérifie si le DataFrame est valide pour le traitement."""
+    """Checks if the DataFrame is valid for processing."""
     return len(df) > 0 and len(df.columns) > 0
 
 def get_numeric_columns(df: pd.DataFrame) -> List[str]:
-    """Retourne la liste des colonnes numériques."""
+    """Returns the list of numeric columns."""
     return df.select_dtypes(include=[np.number]).columns.tolist()
 
 def get_categorical_columns(df: pd.DataFrame) -> List[str]:
-    """Retourne la liste des colonnes catégorielles."""
+    """Returns the list of categorical columns."""
     return df.select_dtypes(include=['object', 'category']).columns.tolist()
 
 def calculate_advanced_stats(df: pd.DataFrame) -> Dict[str, Any]:
-    """Calcule des statistiques avancées sur les données."""
+    """Calculates advanced statistics on the data."""
     numeric_cols = get_numeric_columns(df)
     stats = {
         'basic_stats': df[numeric_cols].describe().to_dict(),
@@ -26,7 +26,7 @@ def calculate_advanced_stats(df: pd.DataFrame) -> Dict[str, Any]:
     return stats
 
 def filter_dataframe(df: pd.DataFrame, column: str, value: Any, operator: str = 'equals') -> pd.DataFrame:
-    """Filtre le DataFrame selon les critères spécifiés."""
+    """Filters the DataFrame according to specified criteria."""
     if operator == 'equals':
         return df[df[column] == value]
     elif operator == 'greater_than':
@@ -36,10 +36,10 @@ def filter_dataframe(df: pd.DataFrame, column: str, value: Any, operator: str = 
     elif operator == 'contains':
         return df[df[column].astype(str).str.contains(str(value), case=False)]
     else:
-        raise ValueError(f"Opérateur {operator} non supporté")
+        raise ValueError(f"Operator {operator} not supported")
 
 def handle_missing_values(df: pd.DataFrame, strategy: str = 'mean', columns: Optional[List[str]] = None) -> pd.DataFrame:
-    """Traite les valeurs manquantes dans le DataFrame."""
+    """Handles missing values in the DataFrame."""
     df_copy = df.copy()
     if columns is None:
         columns = df.columns
@@ -57,7 +57,7 @@ def handle_missing_values(df: pd.DataFrame, strategy: str = 'mean', columns: Opt
     return df_copy
 
 def handle_outliers(df: pd.DataFrame, method: str = 'iqr', columns: Optional[List[str]] = None) -> pd.DataFrame:
-    """Détecte et traite les valeurs aberrantes."""
+    """Detects and handles outliers."""
     df_copy = df.copy()
     if columns is None:
         columns = get_numeric_columns(df_copy)
@@ -77,11 +77,11 @@ def handle_outliers(df: pd.DataFrame, method: str = 'iqr', columns: Optional[Lis
     return df_copy
 
 def remove_duplicates(df: pd.DataFrame, subset: Optional[List[str]] = None) -> pd.DataFrame:
-    """Supprime les lignes dupliquées du DataFrame."""
+    """Removes duplicate rows from the DataFrame."""
     return df.drop_duplicates(subset=subset, keep='first')
 
 def normalize_data(df: pd.DataFrame, method: str = 'minmax', columns: Optional[List[str]] = None) -> pd.DataFrame:
-    """Normalise les données numériques du DataFrame."""
+    """Normalizes numeric data in the DataFrame."""
     df_copy = df.copy()
     if columns is None:
         columns = get_numeric_columns(df_copy)
@@ -97,7 +97,7 @@ def normalize_data(df: pd.DataFrame, method: str = 'minmax', columns: Optional[L
     return df_copy
 
 def transform_data(df: pd.DataFrame, transformations: List[Dict[str, Any]]) -> pd.DataFrame:
-    """Applique une série de transformations au DataFrame."""
+    """Applies a series of transformations to the DataFrame."""
     df_copy = df.copy()
     for transform in transformations:
         operation = transform.get('operation')

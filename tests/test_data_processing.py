@@ -16,7 +16,7 @@ from app.utils.data_processing import (
 
 class TestDataProcessing(unittest.TestCase):
     def setUp(self):
-        # Créer des données de test
+        # Create test data
         self.test_data = pd.DataFrame({
             'numeric1': [1, 2, 3, np.nan, 5],
             'numeric2': [1.1, 2.2, 3.3, 4.4, 5.5],
@@ -24,13 +24,13 @@ class TestDataProcessing(unittest.TestCase):
             'text': ['x', 'y', 'z', 'x', 'y']
         })
 
-        # Données avec doublons
+        # Data with duplicates
         self.data_with_duplicates = pd.DataFrame({
             'id': [1, 2, 2, 3],
             'value': ['a', 'b', 'b', 'c']
         })
 
-        # Données avec valeurs aberrantes
+        # Data with outliers
         self.data_with_outliers = pd.DataFrame({
             'values': [1, 2, 3, 100, 2, 3, 1, 200]
         })
@@ -117,13 +117,13 @@ class TestDataProcessing(unittest.TestCase):
         
         transformed_df = transform_data(self.test_data, transformations)
         
-        # Vérifier que les valeurs manquantes sont traitées
+        # Verify that missing values are handled
         self.assertFalse(transformed_df['numeric1'].isnull().any())
         
-        # Vérifier la normalisation
+        # Verify normalization
         self.assertTrue(all(transformed_df['numeric2'].between(0, 1)))
         
-        # Vérifier l'encodage one-hot
+        # Verify one-hot encoding
         self.assertIn('category_A', transformed_df.columns)
         self.assertIn('category_B', transformed_df.columns)
         self.assertIn('category_C', transformed_df.columns)
