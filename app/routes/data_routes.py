@@ -1,92 +1,93 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Path
-from fastapi.responses import Response
-from typing import List, Dict, Any
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Response
+from ..services.data_service import DataService
+from typing import List, Optional
 import pandas as pd
-import sqlite3
-from ..models.data_models import FilterRequest, StatisticsResponse, ErrorResponse, SuccessResponse
-from .. import data_service
+import io
+from ..utils.data_processing import (
+    handle_missing_values,
+    handle_outliers,
+    remove_duplicates,
+    normalize_data
+)
 
 router = APIRouter()
+data_service = DataService("data/database.sqlite")
 
 @router.post("/upload/")
 async def upload_file(file: UploadFile = File(...)):
     try:
-        # Vérifier l'extension du fichier
-        if file.filename.endswith('.csv'):
-            df = pd.read_csv(file.file)
-        elif file.filename.endswith('.json'):
-            df = pd.read_json(file.file)
+        # Vérifier le type de fichier
+        if not file.filename.endswith('.csv'):
+            raise HTTPException(
+                status_code=400,
+                detail="Le fichier doit être au format CSV"
+            )
+        
+        # Lire le contenu du fichier
+        content = await file.read()
+        df = pd.read_csv(io.BytesIO(content))
+        
+        # Sauvegarder les données
+        if data_service.save_dataframe(df):
+            return {"message": "Fichier CSV chargé avec succès", "rows": len(df), "columns": df.columns.tolist()}
         else:
-            raise HTTPException(status_code=400, detail="Format de fichier non supporté")
-        
-        # Sauvegarder les données dans SQLite
-        with sqlite3.connect("data/database.sqlite") as conn:
-            df.to_sql('data_table', conn, if_exists='replace', index=False)
-        
-        return {"message": "Fichier uploadé avec succès", "filename": file.filename}
+            raise HTTPException(status_code=500, detail="Erreur lors de la sauvegarde des données")
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/statistics/", response_model=StatisticsResponse)
+@router.post("/process/")
+async def process_data(
+    handle_missing: str = Query("mean", description="Stratégie de gestion des valeurs manquantes (mean, median, mode, drop)"),
+    handle_outliers_method: str = Query("iqr", description="Méthode de gestion des valeurs aberrantes (iqr, zscore)"),
+    normalize_method: str = Query("minmax", description="Méthode de normalisation (minmax, zscore)"),
+    columns: Optional[List[str]] = Query(None, description="Colonnes à traiter (toutes si non spécifié)")
+):
+    try:
+        # Récupérer les données
+        df = data_service.get_dataframe()
+        if df is None:
+            raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
+        
+        # Traiter les données
+        df = handle_missing_values(df, strategy=handle_missing, columns=columns)
+        df = handle_outliers(df, method=handle_outliers_method, columns=columns)
+        df = remove_duplicates(df)
+        df = normalize_data(df, method=normalize_method, columns=columns)
+        
+        # Sauvegarder les données traitées
+        if data_service.save_dataframe(df):
+            return {"message": "Données traitées avec succès", "rows": len(df), "columns": df.columns.tolist()}
+        else:
+            raise HTTPException(status_code=500, detail="Erreur lors de la sauvegarde des données traitées")
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/export/")
+async def export_data():
+    try:
+        df = data_service.get_dataframe()
+        if df is None:
+            raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
+        
+        # Convertir en CSV
+        output = io.StringIO()
+        df.to_csv(output, index=False)
+        response = Response(content=output.getvalue(), media_type="text/csv")
+        response.headers["Content-Disposition"] = "attachment; filename=data_processed.csv"
+        return response
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/statistics/")
 async def get_statistics():
     try:
         stats = data_service.get_statistics()
         if stats is None:
-            raise HTTPException(status_code=404, detail="No data available")
-        return StatisticsResponse(
-            count=stats['basic_stats']['count'],
-            columns=list(stats['basic_stats'].keys()),
-            numeric_stats=stats['basic_stats'],
-            missing_values=stats['missing_values']
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/filter/")
-async def filter_data(filter_request: FilterRequest):
-    try:
-        result = data_service.filter_data(
-            column=filter_request.column,
-            value=filter_request.value,
-            operator=filter_request.operator
-        )
-        if result is None:
-            raise HTTPException(status_code=404, detail="Données non trouvées")
-        return result.to_dict(orient='records')
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/transform/")
-async def transform_data(transformations: List[Dict[str, Any]]):
-    try:
-        result = data_service.apply_transformations(transformations)
-        if result is None:
-            raise HTTPException(status_code=400, detail="Erreur lors de la transformation")
-        return SuccessResponse(
-            message="Transformation réussie",
-            data=result.to_dict(orient='records')
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/export/{format}")
-async def export_data(format: str = Path(..., regex="^(csv|json)$")):
-    try:
-        df = data_service.get_dataframe()
-        if df is None:
-            raise HTTPException(status_code=404, detail="No data available")
-        
-        if format == "csv":
-            return Response(
-                df.to_csv(index=False),
-                media_type="text/csv",
-                headers={"Content-Disposition": "attachment; filename=data.csv"}
-            )
-        else:
-            return Response(
-                df.to_json(orient='records'),
-                media_type="application/json",
-                headers={"Content-Disposition": "attachment; filename=data.json"}
-            )
+            raise HTTPException(status_code=404, detail="Aucune donnée trouvée")
+        return stats
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

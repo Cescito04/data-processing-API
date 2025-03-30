@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import data_routes
+from .routes import router
 
 app = FastAPI(
     title="Data Processing API",
@@ -17,8 +17,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Root path redirect
+@app.get("/")
+async def root():
+    return {"message": "Welcome to Data Processing API", "docs": "/docs"}
+
 # Include routes
-app.include_router(data_routes.router, prefix="/api/v1")
+app.include_router(router, prefix="/api")
 
 if __name__ == "__main__":
     import uvicorn

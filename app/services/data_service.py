@@ -34,10 +34,21 @@ class DataService:
 
     def get_statistics(self, table_name: str = 'data_table') -> Optional[Dict[str, Any]]:
         """Calculates statistics on the data."""
-        df = self.get_dataframe(table_name)
-        if df is None:
+        try:
+            df = self.get_dataframe(table_name)
+            if df is None or df.empty:
+                return None
+            if not any(df.select_dtypes(include=['number']).columns):
+                return {
+                    'basic_stats': {'count': len(df)},
+                    'correlations': {},
+                    'missing_values': df.isnull().sum().to_dict(),
+                    'unique_values': {col: df[col].nunique() for col in df.columns}
+                }
+            return calculate_advanced_stats(df)
+        except Exception as e:
+            print(f"Error calculating statistics: {str(e)}")
             return None
-        return calculate_advanced_stats(df)
 
     def filter_data(self, column: str, value: Any, operator: str = 'equals',
                     table_name: str = 'data_table') -> Optional[pd.DataFrame]:
