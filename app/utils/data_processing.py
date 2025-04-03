@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 
 
 def validate_dataframe(df: pd.DataFrame) -> bool:
@@ -15,19 +15,30 @@ def get_numeric_columns(df: pd.DataFrame) -> List[str]:
 
 def get_categorical_columns(df: pd.DataFrame) -> List[str]:
     """Returns the list of categorical columns."""
-    return df.select_dtypes(include=["object", "category"]).columns.tolist()
+    return df.select_dtypes(include=['object', 'category', 'bool']).columns.tolist()
+
+
+def identify_column_types(df: pd.DataFrame) -> Dict[str, List[str]]:
+    """Identifies and categorizes columns by their data types."""
+    return {
+        'numeric': get_numeric_columns(df),
+        'categorical': get_categorical_columns(df),
+        'boolean': df.select_dtypes(include=['bool']).columns.tolist(),
+        'datetime': df.select_dtypes(include=['datetime64']).columns.tolist()
+    }
 
 
 def calculate_advanced_stats(df: pd.DataFrame) -> Dict[str, Any]:
     """Calculates advanced statistics on the data."""
-    numeric_cols = get_numeric_columns(df)
+    column_types = identify_column_types(df)
+    numeric_cols = column_types['numeric']
+    
     stats = {
-        "basic_stats": df[numeric_cols].describe().to_dict(),
-        "correlations": (
-            df[numeric_cols].corr().to_dict() if len(numeric_cols) > 1 else {}
-        ),
-        "missing_values": df.isnull().sum().to_dict(),
-        "unique_values": {col: df[col].nunique() for col in df.columns},
+        'basic_stats': df[numeric_cols].describe().to_dict() if numeric_cols else {},
+        'correlations': df[numeric_cols].corr().to_dict() if len(numeric_cols) > 1 else {},
+        'missing_values': df.isnull().sum().to_dict(),
+        'unique_values': {col: df[col].nunique() for col in df.columns},
+        'column_types': {col: str(df[col].dtype) for col in df.columns}
     }
     return stats
 
@@ -49,68 +60,70 @@ def filter_dataframe(
 
 
 def handle_missing_values(
-    df: pd.DataFrame, strategy: str = "auto", columns: Optional[List[str]] = None
+    df: pd.DataFrame,
+    strategy: str = "auto",
+    columns: Optional[List[str]] = None,
+    target_column: Optional[str] = None
 ) -> pd.DataFrame:
-    """Handles missing values in the DataFrame using intelligent imputation strategies."""
+    """Handles missing values while preserving data types and excluding target column."""
     df_copy = df.copy()
     if columns is None:
-        columns = df.columns
+        columns = [col for col in df.columns if col != target_column]
+
+    column_types = identify_column_types(df_copy)
+    original_dtypes = df_copy.dtypes.to_dict()
 
     for col in columns:
         if df_copy[col].isnull().any():
             if strategy == "auto":
-                if pd.api.types.is_numeric_dtype(df_copy[col]):
-                    # Pour les colonnes numériques, utiliser une combinaison de méthodes
-                    if df_copy[col].skew() > 1 or df_copy[col].skew() < -1:
-                        # Pour les distributions asymétriques, utiliser la médiane
+                if col in column_types['numeric']:
+                    if df_copy[col].dtype in ['int32', 'int64']:
                         df_copy[col] = df_copy[col].fillna(df_copy[col].median())
                     else:
-                        # Pour les distributions normales, utiliser la moyenne
-                        df_copy[col] = df_copy[col].fillna(df_copy[col].mean())
-                elif pd.api.types.is_datetime64_dtype(df_copy[col]):
-                    # Pour les dates, utiliser l'interpolation linéaire
-                    df_copy[col] = df_copy[col].interpolate(method='linear')
+                        if df_copy[col].skew() > 1 or df_copy[col].skew() < -1:
+                            df_copy[col] = df_copy[col].fillna(df_copy[col].median())
+                        else:
+                            df_copy[col] = df_copy[col].fillna(df_copy[col].mean())
+                elif col in column_types['boolean']:
+                    df_copy[col] = df_copy[col].fillna(df_copy[col].mode()[0])
+                elif col in column_types['datetime']:
+                    df_copy[col] = df_copy[col].interpolate(method='time')
                 else:
-                    # Pour les colonnes catégorielles, utiliser une stratégie avancée
-                    if df_copy[col].nunique() / len(df_copy) < 0.05:  # Si peu de catégories uniques
+                    if df_copy[col].nunique() / len(df_copy) < 0.05:
                         df_copy[col] = df_copy[col].fillna(df_copy[col].mode()[0])
-                    else:  # Si beaucoup de catégories uniques
+                    else:
                         df_copy[col] = df_copy[col].fillna('Non spécifié')
-            elif strategy == "mean" and pd.api.types.is_numeric_dtype(df_copy[col]):
-                df_copy[col] = df_copy[col].fillna(df_copy[col].mean())
-            elif strategy == "median" and pd.api.types.is_numeric_dtype(df_copy[col]):
-                df_copy[col] = df_copy[col].fillna(df_copy[col].median())
+            elif strategy in ["mean", "median"] and col in column_types['numeric']:
+                value = df_copy[col].median() if strategy == "median" else df_copy[col].mean()
+                df_copy[col] = df_copy[col].fillna(value)
             elif strategy == "mode":
                 df_copy[col] = df_copy[col].fillna(df_copy[col].mode()[0])
-            elif strategy == "drop":
-                df_copy = df_copy.dropna(subset=[col])
-            elif strategy == "ffill":
-                df_copy[col] = df_copy[col].fillna(method='ffill')
-            elif strategy == "bfill":
-                df_copy[col] = df_copy[col].fillna(method='bfill')
-            
-    # Vérification finale qu'il n'y a plus de valeurs manquantes
-    if df_copy.isnull().any().any():
-        # S'il reste des valeurs manquantes, les remplacer par des valeurs par défaut selon le type
-        for col in df_copy.columns:
-            if df_copy[col].isnull().any():
-                if pd.api.types.is_numeric_dtype(df_copy[col]):
-                    df_copy[col] = df_copy[col].fillna(0)
-                elif pd.api.types.is_datetime64_dtype(df_copy[col]):
-                    df_copy[col] = df_copy[col].fillna(pd.Timestamp.min)
-                else:
-                    df_copy[col] = df_copy[col].fillna('Non spécifié')
+
+    # Restore original data types
+    for col, dtype in original_dtypes.items():
+        if col in df_copy.columns:
+            try:
+                df_copy[col] = df_copy[col].astype(dtype)
+            except:
+                pass
+
+    return df_copy
     
     return df_copy
 
 
 def handle_outliers(
-    df: pd.DataFrame, method: str = "iqr", columns: Optional[List[str]] = None
+    df: pd.DataFrame,
+    method: str = "iqr",
+    columns: Optional[List[str]] = None,
+    target_column: Optional[str] = None
 ) -> pd.DataFrame:
-    """Detects and handles outliers."""
+    """Detects and handles outliers while preserving data types and excluding target column."""
     df_copy = df.copy()
     if columns is None:
-        columns = get_numeric_columns(df_copy)
+        columns = [col for col in get_numeric_columns(df_copy) if col != target_column]
+
+    original_dtypes = df_copy.dtypes.to_dict()
 
     for col in columns:
         if pd.api.types.is_numeric_dtype(df_copy[col]):
@@ -123,7 +136,16 @@ def handle_outliers(
                 df_copy[col] = df_copy[col].clip(lower_bound, upper_bound)
             elif method == "zscore":
                 z_scores = (df_copy[col] - df_copy[col].mean()) / df_copy[col].std()
-                df_copy[col] = df_copy[col].mask(abs(z_scores) > 3, df_copy[col].mean())
+                df_copy[col] = df_copy[col].mask(abs(z_scores) > 3, df_copy[col].median())
+
+    # Restore original data types
+    for col, dtype in original_dtypes.items():
+        if col in df_copy.columns:
+            try:
+                df_copy[col] = df_copy[col].astype(dtype)
+            except:
+                pass
+
     return df_copy
 
 
@@ -135,51 +157,83 @@ def remove_duplicates(
 
 
 def normalize_data(
-    df: pd.DataFrame, method: str = "minmax", columns: Optional[List[str]] = None
-) -> pd.DataFrame:
-    """Normalizes numeric data in the DataFrame."""
+    df: pd.DataFrame,
+    method: str = "minmax",
+    columns: Optional[List[str]] = None,
+    target_column: Optional[str] = None
+) -> Tuple[pd.DataFrame, Dict[str, Dict[str, float]]]:
+    """Normalizes numeric data while preserving integer types and excluding target column."""
     df_copy = df.copy()
     if columns is None:
-        columns = get_numeric_columns(df_copy)
+        columns = [col for col in get_numeric_columns(df_copy) if col != target_column]
+
+    original_dtypes = df_copy.dtypes.to_dict()
+    scaling_params = {}
 
     for col in columns:
         if pd.api.types.is_numeric_dtype(df_copy[col]):
+            # Skip boolean columns
+            if df_copy[col].dtype == bool:
+                continue
+                
             if method == "minmax":
                 min_val = df_copy[col].min()
                 max_val = df_copy[col].max()
-                df_copy[col] = (df_copy[col] - min_val) / (max_val - min_val)
+                if min_val != max_val:
+                    df_copy[col] = (df_copy[col] - min_val) / (max_val - min_val)
+                    scaling_params[col] = {"min": float(min_val), "max": float(max_val)}
+                    
+                    # Preserve integer type if original column was integer
+                    if original_dtypes[col] in ['int32', 'int64']:
+                        df_copy[col] = (df_copy[col] * 100).round().astype(original_dtypes[col])
+            
             elif method == "zscore":
-                df_copy[col] = (df_copy[col] - df_copy[col].mean()) / df_copy[col].std()
-    return df_copy
+                mean_val = df_copy[col].mean()
+                std_val = df_copy[col].std()
+                if std_val != 0:
+                    df_copy[col] = (df_copy[col] - mean_val) / std_val
+                    scaling_params[col] = {"mean": float(mean_val), "std": float(std_val)}
+
+    return df_copy, scaling_params
 
 
 def transform_data(
-    df: pd.DataFrame, transformations: List[Dict[str, Any]]
+    df: pd.DataFrame,
+    transformations: List[Dict[str, Any]],
+    target_column: Optional[str] = None
 ) -> pd.DataFrame:
-    """Applies a series of transformations to the DataFrame."""
+    """Applies a series of transformations while preserving data types and target column."""
     df_copy = df.copy()
+    scaling_info = {}
+
     for transform in transformations:
         operation = transform.get("operation")
+        columns = transform.get("columns")
 
         if operation == "handle_missing":
-            strategy = transform.get("strategy", "mean")
-            columns = transform.get("columns")
-            df_copy = handle_missing_values(df_copy, strategy, columns)
+            strategy = transform.get("strategy", "auto")
+            df_copy = handle_missing_values(df_copy, strategy, columns, target_column)
+        
         elif operation == "handle_outliers":
             method = transform.get("method", "iqr")
-            columns = transform.get("columns")
-            df_copy = handle_outliers(df_copy, method, columns)
+            df_copy = handle_outliers(df_copy, method, columns, target_column)
+        
         elif operation == "remove_duplicates":
             subset = transform.get("subset")
             df_copy = remove_duplicates(df_copy, subset)
+        
         elif operation == "normalize":
             method = transform.get("method", "minmax")
-            columns = transform.get("columns")
-            df_copy = normalize_data(df_copy, method, columns)
-        elif operation == "one_hot_encode":
-            column = transform.get("column")
-            dummies = pd.get_dummies(df_copy[column], prefix=column)
-            df_copy = pd.concat([df_copy, dummies], axis=1)
-            df_copy.drop(column, axis=1, inplace=True)
+            df_copy, params = normalize_data(df_copy, method, columns, target_column)
+            scaling_info["normalize"] = params
+        
+        elif operation == "encode_categorical":
+            for col in columns or []:
+                if col != target_column and col in df_copy.columns:
+                    if df_copy[col].dtype == bool:
+                        continue  # Skip boolean columns
+                    dummies = pd.get_dummies(df_copy[col], prefix=col)
+                    df_copy = pd.concat([df_copy, dummies], axis=1)
+                    df_copy.drop(col, axis=1, inplace=True)
 
     return df_copy
