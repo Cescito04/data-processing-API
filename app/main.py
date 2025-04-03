@@ -5,7 +5,7 @@ from .routes import router
 app = FastAPI(
     title="Data Processing API",
     description="REST API for data processing and data analysis",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # CORS Configuration
@@ -17,14 +17,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Root path redirect
 @app.get("/")
 async def root():
     return {"message": "Welcome to Data Processing API", "docs": "/docs"}
 
+
 # Include routes
-app.include_router(router, prefix="/api")
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

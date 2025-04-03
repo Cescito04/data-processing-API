@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Informations du fichier</h4>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Nom du fichier :</dt>
+                    <dd class="col-sm-8">{{ data_file.original_filename }}</dd>
+
+                    <dt class="col-sm-4">Type de fichier :</dt>
+                    <dd class="col-sm-8">{{ data_file.file_type|upper }}</dd>
+
+                    <dt class="col-sm-4">Nombre de lignes :</dt>
+                    <dd class="col-sm-8">{{ data_file.row_count }}</dd>
+
+                    <dt class="col-sm-4">Nombre de colonnes :</dt>
+                    <dd class="col-sm-8">{{ data_file.column_count }}</dd>
+
+                    <dt class="col-sm-4">Valeurs manquantes :</dt>
+                    <dd class="col-sm-8">
+                        {% if data_file.missing_values %}
+                            <ul class="list-unstyled mb-0">
+                            {% for column, count in data_file.missing_values.items %}
+                                {% if count > 0 %}
+                                    <li>{{ column }}: {{ count }}</li>
+                                {% endif %}
+                            {% endfor %}
+                            </ul>
+                        {% else %}
+                            Aucune valeur manquante
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Options de traitement</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <!-- Valeurs manquantes -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <div class="form-check">
+                                        {{ form.handle_missing }}
+                                        <label class="form-check-label" for="{{ form.handle_missing.id_for_label }}">
+                                            {{ form.handle_missing.label }}
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="{{ form.missing_strategy.id_for_label }}" class="form-label">{{ form.missing_strategy.label }}</label>
+                                        {{ form.missing_strategy }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Valeurs aberrantes -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <div class="form-check">
+                                        {{ form.handle_outliers }}
+                                        <label class="form-check-label" for="{{ form.handle_outliers.id_for_label }}">
+                                            {{ form.handle_outliers.label }}
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="{{ form.outliers_method.id_for_label }}" class="form-label">{{ form.outliers_method.label }}</label>
+                                        {{ form.outliers_method }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Normalisation -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <div class="form-check">
+                                        {{ form.normalize_data }}
+                                        <label class="form-check-label" for="{{ form.normalize_data.id_for_label }}">
+                                            {{ form.normalize_data.label }}
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="{{ form.normalization_method.id_for_label }}" class="form-label">{{ form.normalization_method.label }}</label>
+                                        {{ form.normalization_method }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Doublons -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <div class="form-check">
+                                        {{ form.remove_duplicates }}
+                                        <label class="form-check-label" for="{{ form.remove_duplicates.id_for_label }}">
+                                            {{ form.remove_duplicates.label }}
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-cogs me-2"></i>Traiter les données
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
