@@ -1,132 +1,110 @@
 # Data Processing API
 
-## Objective
-Create a REST API for data processing and analysis, allowing users to perform statistical operations on datasets.
+This Django API enables automatic processing of data files (CSV, JSON) by providing various data cleaning and preprocessing functionalities.
 
 ## Features
 
-### Data Management
-- Upload data files (CSV, JSON)
+### File Management
+- Upload CSV and JSON files
 - Automatic data format validation
+- Data preview
+- Export processed data to CSV, JSON, or Excel
+
+### Data Processing
 - Detection and handling of missing values
-- Identification and processing of outliers
+  - Mode for categorical variables
+  - Mean/Median for numerical variables
+  - Specific handling for binary variables
+- Identification and treatment of outliers
+  - IQR (Interquartile Range) method
+  - Preservation of original data types
+- Normalization of numerical data
+  - Min-Max normalization [0,1]
+  - Proportion preservation
 - Duplicate removal
-- Data normalization
+- Target column support (for supervised learning)
 
-### Statistical Analysis
-- Descriptive statistics (mean, median, standard deviation)
-- Distribution analysis
-- Correlation detection
-- Basic statistical tests
+## Prerequisites
 
-### Visualization
-- Graph generation (histograms, box plots)
-- Export visualizations in PNG/PDF formats
-- Customization of visual parameters
-
-## Technologies
-- Python 3.x
-- FastAPI for REST API
-- Pandas for data processing
-- NumPy for statistical calculations
-- Matplotlib/Seaborn for visualizations
-- SQLite for storage
-
-## Project Structure
-```
-data-processing-API/
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── routes/
-│   │   └── data_routes.py    # API Endpoints
-│   ├── models/
-│   │   └── data_models.py    # Pydantic Models
-│   ├── services/
-│   │   └── data_service.py   # Business Logic
-│   └── utils/
-│       └── data_processing.py # Utility Functions
-├── tests/
-│   ├── test_data_processing.py
-│   └── test_data_service.py
-├── data/
-└── requirements.txt
-```
+- Python 3.8+
+- Django 4.0+
+- pandas
+- numpy
 
 ## Installation
-1. Clone the repository
-   ```bash
-   git clone [repo-url]
-   cd data-processing-API
-   ```
 
-2. Create a virtual environment
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   .\venv\Scripts\activate  # Windows
-   ```
-
-3. Install dependencies
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Start the API
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-
-## API Usage
-
-### Data Upload
-```python
-POST /api/v1/data/upload
-Content-Type: multipart/form-data
-
-# Response
-{
-    "status": "success",
-    "file_id": "abc123",
-    "rows_count": 1000
-}
-```
-
-### Statistical Analysis
-```python
-GET /api/v1/data/{file_id}/stats
-
-# Response
-{
-    "mean": 42.5,
-    "median": 41.0,
-    "std": 5.2,
-    "missing_values": 10
-}
-```
-
-## Tests
-Unit tests cover:
-- Data validation
-- Statistical processing
-- API endpoints
-
-Run tests:
+1. Clone the repository:
 ```bash
-python -m pytest tests/
+git clone [repository-url]
+cd data-processing-API
 ```
 
-## API Documentation
-Complete API documentation is available at `/docs` once the server is running.
-Includes:
-- Detailed endpoint descriptions
-- Request/response schemas
-- Usage examples
-- Error codes
+2. Create and activate a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # Unix/macOS
+venv\Scripts\activate    # Windows
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Apply migrations:
+```bash
+python manage.py migrate
+```
+
+5. Create a superuser (optional):
+```bash
+python manage.py createsuperuser
+```
+
+## Usage
+
+1. Start the server:
+```bash
+python manage.py runserver
+```
+
+2. Access the web interface: http://localhost:8000
+
+3. Data processing workflow:
+   - Upload a file (CSV or JSON)
+   - View metadata (number of rows, columns, missing values)
+   - Configure processing options
+   - Run the processing
+   - Export processed data
+
+## Project Structure
+
+```
+data-processing-API/
+├── data_processor/           # Main application
+│   ├── forms.py             # Configuration forms
+│   ├── models.py            # Data models
+│   └── views.py             # Processing logic
+├── templates/               # HTML templates
+├── static/                  # Static files
+├── media/                   # Uploaded files
+└── requirements.txt         # Dependencies
+```
+
+## Security
+
+- File type validation
+- File size limitation
+- Secure storage of uploaded files
+- CSRF protection
 
 ## Contributing
-1. Fork the project
-2. Create a branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+
+Contributions are welcome! Feel free to:
+- Report bugs
+- Suggest improvements
+- Submit pull requests
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
