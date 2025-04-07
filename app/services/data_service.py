@@ -7,9 +7,29 @@ from ..utils.data_processing import (
     filter_dataframe,
     transform_data,
 )
+from ..utils.json_processor import (
+    load_json_data,
+    save_json_data,
+    process_json_data,
+)
 
 
 class DataService:
+    def __init__(self, database_url: str):
+        """Initialise le service de données avec l'URL de la base de données."""
+        self.database_url = database_url
+
+    def process_json_file(self, json_file_path: str, transformations: List[Dict[str, Any]] = None) -> Optional[pd.DataFrame]:
+        """Traite un fichier JSON et retourne un DataFrame."""
+        df = load_json_data(json_file_path)
+        if df is not None and transformations:
+            df = transform_data(df, transformations)
+        return df
+
+    def save_to_json(self, df: pd.DataFrame, json_file_path: str) -> bool:
+        """Sauvegarde un DataFrame au format JSON."""
+        return save_json_data(df, json_file_path)
+
     def __init__(self, database_url: str):
         self.database_url = database_url
 
