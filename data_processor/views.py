@@ -8,6 +8,26 @@ import pandas as pd
 import numpy as np
 import os
 
+def upload_file(request):
+    if request.method == 'POST':
+        form = DataFileUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            file = request.FILES['file']
+            file_extension = file.name.split('.')[-1].lower()
+            
+            # Sauvegarder le type de fichier d'origine
+            data_file = form.save(commit=False)
+            data_file.original_file_type = file_extension
+            data_file.file_type = 'csv'  # Le type final sera toujours CSV après traitement
+            data_file.save()
+            
+            messages.success(request, 'Fichier importé avec succès.')
+            return redirect('file_list')
+    else:
+        form = DataFileUploadForm()
+    
+    return render(request, 'data_processor/upload.html', {'form': form})
+
 def process_file(request, pk):
     data_file = DataFile.objects.get(pk=pk)
     
