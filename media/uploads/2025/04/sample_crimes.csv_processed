@@ -1,4 +1,0 @@
-id,date,type,location_latitude,location_longitude,location_address,location_city,description,status,severity
-0.0,2023-01-15 14:30:00,Vol,0.0,1.0,123 Rue de la Paix,Paris,Vol à l'étalage dans un magasin,Résolu,Mineur
-0.5,2023-02-20 23:15:00,Vandalisme,0.10465116279085139,0.0,45 Avenue des Champs-Élysées,Paris,Graffitis sur un bâtiment public,En cours,Modéré
-1.0,2023-03-10 02:45:00,Agression,1.0,0.008665511265159897,78 Boulevard Haussmann,Paris,Altercation physique devant un bar,En cours,Majeur

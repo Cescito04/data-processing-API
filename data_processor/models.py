@@ -5,6 +5,7 @@ class DataFile(models.Model):
     file = models.FileField(upload_to='uploads/%Y/%m/%d/', verbose_name='Fichier')
     original_filename = models.CharField(max_length=255, verbose_name='Nom du fichier original')
     upload_date = models.DateTimeField(default=timezone.now, verbose_name='Date d\'importation')
+    original_file_type = models.CharField(max_length=10, verbose_name='Type de fichier original', default='unknown')
     file_type = models.CharField(max_length=10, verbose_name='Type de fichier')
     processed = models.BooleanField(default=False, verbose_name='Traité')
     row_count = models.IntegerField(default=0, verbose_name='Nombre de lignes')

@@ -1,0 +1,4 @@
+id,title,author,genre,price,publish_date
+1,Clean Code,Robert C. Martin,Programming,29.99,2008-08-01
+2,The Pragmatic Programmer,Andrew Hunt and David Thomas,Software Engineering,39.99,1999-10-20
+3,Introduction to Algorithms,Thomas H. Cormen,Computer Science,79.99,2009-07-31

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bookstore>
+    <book id="1">
+        <title>Clean Code</title>
+        <author>Robert C. Martin</author>
+        <genre>Programming</genre>
+        <price>29.99</price>
+        <publish_date>2008-08-01</publish_date>
+    </book>
+    <book id="2">
+        <title>The Pragmatic Programmer</title>
+        <author>Andrew Hunt and David Thomas</author>
+        <genre>Software Engineering</genre>
+        <price>39.99</price>
+        <publish_date>1999-10-20</publish_date>
+    </book>
+    <book id="3">
+        <title>Introduction to Algorithms</title>
+        <author>Thomas H. Cormen</author>
+        <genre>Computer Science</genre>
+        <price>79.99</price>
+        <publish_date>2009-07-31</publish_date>
+    </book>
+</bookstore>
