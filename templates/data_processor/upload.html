@@ -11,7 +11,7 @@
                 <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label for="{{ form.file.id_for_label }}" class="form-label">Sélectionnez un fichier (CSV ou JSON)</label>
+                        <label for="{{ form.file.id_for_label }}" class="form-label">Sélectionnez un fichier (CSV, JSON ou XML)</label>
                         {{ form.file }}
                         {% if form.file.errors %}
                             <div class="alert alert-danger mt-2">
@@ -24,6 +24,7 @@
                         <ul class="mb-0">
                             <li>CSV (Comma Separated Values)</li>
                             <li>JSON (JavaScript Object Notation)</li>
+                            <li>XML (eXtensible Markup Language)</li>
                         </ul>
                     </div>
                     <button type="submit" class="btn btn-primary">

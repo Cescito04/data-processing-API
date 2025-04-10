@@ -11,9 +11,38 @@ from ..utils.data_processing import (
 )
 from ..utils.csv_validator import validate_csv_data, generate_data_profile
 from ..utils.csv_processor import CSVProcessor
+from ..utils.xml_processor import xml_to_csv
+import os
 
 router = APIRouter()
 data_service = DataService("data/database.sqlite")
+
+
+@router.post("/transform-xml-to-csv/{file_id}")
+async def transform_to_csv(file_id: int):
+    try:
+        # Récupérer le fichier XML
+        file_info = data_service.get_file(file_id)
+        if not file_info:
+            raise HTTPException(status_code=404, detail="Fichier non trouvé")
+            
+        if file_info['file_type'].lower() != 'xml':
+            raise HTTPException(status_code=400, detail="Le fichier doit être au format XML")
+            
+        # Créer le chemin pour le fichier CSV
+        xml_path = file_info['file_path']
+        csv_path = os.path.splitext(xml_path)[0] + '.csv'
+        
+        # Convertir XML en CSV
+        if xml_to_csv(xml_path, csv_path):
+            # Mettre à jour les informations du fichier dans la base de données
+            data_service.update_file_type(file_id, 'csv', csv_path)
+            return {"message": "Fichier converti avec succès en CSV"}
+        else:
+            raise HTTPException(status_code=500, detail="Erreur lors de la conversion du fichier")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/upload/")

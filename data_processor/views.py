@@ -155,36 +155,99 @@ def upload_file(request):
                 uploaded_file = request.FILES['file']
                 file_extension = uploaded_file.name.split('.')[-1].lower()
                 
+                # Créer le dossier media/uploads s'il n'existe pas
+                import os
+                from django.conf import settings
+                upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
+                os.makedirs(upload_dir, exist_ok=True)
+                
                 # Vérifier le type de fichier
-                if file_extension not in ['csv', 'json']:
-                    messages.error(request, 'Type de fichier non supporté. Veuillez uploader un fichier CSV ou JSON.')
+                if file_extension not in ['csv', 'json', 'xml']:
+                    messages.error(request, 'Type de fichier non supporté. Veuillez uploader un fichier CSV, JSON ou XML.')
                     return redirect('upload_file')
                 
                 # Créer l'instance de DataFile
                 data_file = form.save(commit=False)
                 data_file.original_filename = uploaded_file.name
+                
+                # Créer le chemin complet du fichier
+                import datetime
+                today = datetime.date.today()
+                file_dir = os.path.join('uploads', str(today.year), str(today.month).zfill(2))
+                upload_path = os.path.join(settings.MEDIA_ROOT, file_dir)
+                os.makedirs(upload_path, exist_ok=True)
+                
+                # Définir le chemin du fichier relatif à MEDIA_ROOT
+                data_file.file.field.upload_to = file_dir
+                
                 data_file.file_type = file_extension
+                data_file.save()  # Sauvegarder d'abord le fichier
+                
+                # Si c'est un fichier XML, valider et convertir en CSV
+                if file_extension == 'xml':
+                    from app.utils.xml_processor import load_xml_data, validate_xml_structure
+                    from app.utils.xml_validator import validate_xml_data
+                    
+                    # Lire le contenu du fichier XML
+                    with open(data_file.file.path, 'r', encoding='utf-8') as xml_file:
+                        xml_content = xml_file.read()
+                    
+                    # Valider la structure XML
+                    is_valid_structure, root, structure_error = validate_xml_structure(xml_content)
+                    if not is_valid_structure:
+                        data_file.delete()  # Supprimer le fichier en cas d'erreur
+                        raise ValueError(f"Structure XML invalide : {structure_error}")
+                    
+                    # Valider les données XML
+                    is_valid_data, data_errors = validate_xml_data(xml_content)
+                    if not is_valid_data:
+                        data_file.delete()  # Supprimer le fichier en cas d'erreur
+                        raise ValueError(f"Données XML invalides : {', '.join(data_errors)}")
+                    
+                    # Charger et convertir les données
+                    df = load_xml_data(data_file.file.path)
+                    if df is None:
+                        data_file.delete()  # Supprimer le fichier en cas d'erreur
+                        raise ValueError("Erreur lors de la conversion des données XML en DataFrame")
+                    
+                    # Sauvegarder en CSV
+                    csv_path = data_file.file.path.rsplit('.', 1)[0] + '.csv'
+                    df.to_csv(csv_path, index=False)
+                    
+                    # Mettre à jour le fichier et le type
+                    data_file.file.name = csv_path
+                    data_file.file_type = 'csv'
+                    data_file.save()
                 
                 # Analyser le fichier pour obtenir les métadonnées
-                if file_extension == 'csv':
-                    df = pd.read_csv(uploaded_file)
-                else:
-                    df = pd.read_json(uploaded_file)
-                
-                # Mettre à jour les métadonnées
-                data_file.row_count = len(df)
-                data_file.column_count = len(df.columns)
-                
-                # Calculer les statistiques sur les valeurs manquantes
-                missing_values = {}
-                for column in df.columns:
-                    missing_count = df[column].isnull().sum()
-                    if missing_count > 0:
-                        missing_values[column] = int(missing_count)
-                data_file.missing_values = missing_values
-                
-                # Sauvegarder le fichier
-                data_file.save()
+                try:
+                    if file_extension == 'csv':
+                        df = pd.read_csv(data_file.file.path)
+                    elif file_extension == 'json':
+                        from app.utils.json_processor import load_json_data
+                        df = load_json_data(data_file.file.path)
+                        if df is None:
+                            raise ValueError("Erreur lors du chargement du fichier JSON")
+                    
+                    # Mettre à jour les métadonnées
+                    data_file.row_count = len(df)
+                    data_file.column_count = len(df.columns)
+                    
+                    # Calculer les statistiques sur les valeurs manquantes
+                    missing_values = {}
+                    for column in df.columns:
+                        missing_count = df[column].isnull().sum()
+                        if missing_count > 0:
+                            missing_values[column] = int(missing_count)
+                    data_file.missing_values = missing_values
+                    data_file.save()
+                    
+                except Exception as e:
+                    # En cas d'erreur, supprimer le fichier et l'enregistrement
+                    data_file.file.delete(save=False)
+                    data_file.delete()
+                    raise Exception(f"Erreur lors de l'analyse du fichier : {str(e)}")
+
                 
                 messages.success(request, 'Fichier uploadé avec succès!')
                 return redirect('file_list')
@@ -292,3 +355,34 @@ def delete_file(request, pk):
         messages.error(request, f'Erreur lors de la suppression: {str(e)}')
     
     return redirect('file_list')
+
+
+def transform_to_csv(request, pk):
+    data_file = DataFile.objects.get(pk=pk)
+    try:
+        if data_file.file_type != 'xml':
+            messages.error(request, 'Cette fonction est uniquement disponible pour les fichiers XML.')
+            return redirect('file_list')
+
+        # Charger les données XML
+        from app.utils.xml_processor import load_xml_data
+        df = load_xml_data(data_file.file.path)
+        if df is None:
+            raise ValueError("Erreur lors du chargement du fichier XML")
+
+        # Créer un nouveau nom de fichier pour le CSV
+        filename_base = os.path.splitext(data_file.original_filename)[0]
+        csv_filename = f"{filename_base}.csv"
+
+        # Préparer la réponse HTTP
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{csv_filename}"'
+
+        # Convertir et sauvegarder en CSV
+        df.to_csv(response, index=False)
+
+        return response
+
+    except Exception as e:
+        messages.error(request, f'Erreur lors de la transformation en CSV: {str(e)}')
+        return redirect('file_list')

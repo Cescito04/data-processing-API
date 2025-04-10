@@ -1,61 +1,41 @@
 # API de Traitement de Données
 
-Une API Django robuste pour le traitement automatisé des données, permettant l'upload, le traitement et l'export de fichiers CSV et JSON.
+Une API robuste pour le traitement automatisé de fichiers de données (CSV, JSON, XML) avec interface web intégrée.
 
-## Fonctionnalités
+## Fonctionnalités Principales
 
 ### Gestion des Fichiers
-- Upload de fichiers CSV et JSON
-- Validation automatique du format des données
-- Prévisualisation des données
+- Upload de fichiers CSV, JSON et XML
+- Validation automatique du format et de la structure des données
+- Prévisualisation des données avec statistiques descriptives
 - Export des données traitées en CSV, JSON ou Excel
+- Interface utilisateur intuitive et responsive
 
 ### Traitement des Données
-- Gestion des valeurs manquantes
-  - Remplacement par la moyenne (données numériques)
-  - Remplacement par la médiane (données numériques)
-  - Remplacement par le mode (tous types de données)
-- Traitement des valeurs aberrantes (outliers)
-  - Méthode IQR (Interquartile Range)
-  - Conservation des types de données d'origine
-- Normalisation des données
-  - Normalisation Min-Max [0,1]
-  - Préservation des types de données entières
-- Gestion des doublons
-  - Détection et suppression automatique
-- Support d'une colonne cible (pour l'apprentissage supervisé)
+- Analyse automatique de la structure des fichiers
+- Détection des valeurs manquantes
+- Statistiques descriptives par colonne
+- Traitement personnalisé pour chaque type de fichier
 
-## Structure du Projet
+## Prérequis
 
-```
-data-processing-API/
-├── data_processor/           # Application principale
-│   ├── forms.py             # Formulaires de configuration
-│   ├── models.py            # Modèles de données
-│   ├── views.py             # Logique de traitement
-│   └── urls.py              # Configuration des URLs
-├── templates/               # Templates HTML
-│   └── data_processor/      # Templates spécifiques
-├── static/                  # Fichiers statiques
-├── media/                   # Fichiers uploadés
-│   └── uploads/            # Stockage des données
-└── requirements.txt         # Dépendances
-```
+- Python 3.8 ou supérieur
+- Django 4.0 ou supérieur
+- Base de données SQLite (incluse)
 
 ## Installation
 
-1. Cloner le repository :
+1. Cloner le dépôt :
 ```bash
-git clone [URL_DU_REPO]
+git clone [url-du-depot]
 cd data-processing-API
 ```
 
-2. Créer un environnement virtuel et l'activer :
+2. Créer un environnement virtuel :
 ```bash
 python -m venv venv
-source venv/bin/activate  # Unix/macOS
-# ou
-venv\Scripts\activate  # Windows
+source venv/bin/activate  # Sur Unix/macOS
+venv\Scripts\activate    # Sur Windows
 ```
 
 3. Installer les dépendances :
@@ -73,45 +53,62 @@ python manage.py migrate
 python manage.py runserver
 ```
 
+## Structure du Projet
+
+```
+data-processing-API/
+├── app/                    # Core application
+│   ├── models/            # Modèles de données
+│   ├── routes/            # Routes API
+│   ├── services/          # Services métier
+│   └── utils/             # Utilitaires
+├── data_processor/        # Application Django
+│   ├── forms.py           # Formulaires
+│   ├── models.py          # Modèles
+│   ├── views.py           # Vues
+│   └── urls.py            # URLs
+├── templates/             # Templates HTML
+├── static/                # Fichiers statiques
+├── media/                 # Fichiers uploadés
+└── requirements.txt       # Dépendances
+```
+
 ## Utilisation
 
-1. Accéder à l'interface web : `http://localhost:8000`
+1. Accéder à l'interface web via `http://localhost:8000`
+2. Utiliser le bouton "Importer un fichier" pour uploader un fichier
+3. Visualiser la liste des fichiers importés
+4. Traiter les fichiers avec le bouton "Traiter"
+5. Exporter les résultats dans le format souhaité
 
-2. Upload de fichiers :
-   - Formats supportés : CSV, JSON
-   - Taille maximale : 10MB
+## Formats de Fichiers Supportés
 
-3. Traitement des données :
-   - Sélectionner le fichier à traiter
-   - Configurer les options de traitement
-   - Lancer le traitement
+### CSV
+- Séparateur : virgule (,)
+- Encodage : UTF-8
+- En-têtes de colonnes requis
 
-4. Export des résultats :
-   - Choisir le format d'export (CSV, JSON, Excel)
-   - Télécharger le fichier traité
+### JSON
+- Format : Array d'objets
+- Structure cohérente entre les objets
 
-## Endpoints API
-
-- `GET /files/` : Liste des fichiers uploadés
-- `POST /files/upload/` : Upload d'un nouveau fichier
-- `GET /files/<id>/preview/` : Prévisualisation des données
-- `POST /files/<id>/process/` : Traitement des données
-- `GET /files/<id>/export/` : Export des données traitées
-- `DELETE /files/<id>/` : Suppression d'un fichier
-
-## Technologies Utilisées
-
-- Django : Framework web
-- Pandas : Traitement des données
-- NumPy : Calculs numériques
-- Bootstrap : Interface utilisateur
+### XML
+- Structure valide et bien formée
+- Namespace supporté
 
 ## Sécurité
 
 - Validation des types de fichiers
-- Limitation de la taille des fichiers
+- Limite de taille des fichiers
 - Protection CSRF
-- Gestion des permissions utilisateur
+- Authentification requise pour l'accès
+
+## Tests
+
+Exécuter les tests unitaires :
+```bash
+python manage.py test
+```
 
 ## Contribution
 

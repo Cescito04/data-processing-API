@@ -56,94 +56,111 @@ def load_json_data(json_file_path: str) -> Optional[pd.DataFrame]:
         logger.info(f"Début du chargement du fichier JSON: {json_file_path}")
         valid_records = []
         invalid_lines = []
+        current_object = ""
         
-        with open(json_file_path, 'r') as file:
-            content = file.read()
-            logger.info("Fichier lu avec succès")
+        with open(json_file_path, 'r', encoding='utf-8') as file:
+            # Lire le fichier ligne par ligne pour éviter les problèmes de mémoire
+            lines = []
+            for line in file:
+                line = line.strip()
+                if line:  # Ignorer les lignes vides
+                    lines.append(line)
             
-            # Nettoyer et normaliser le contenu
-            content = content.strip()
-            content = ''.join(char for char in content if char.isprintable() or char.isspace()).strip()
-            
-            # Supprimer les caractères parasites et les virgules trailing
-            while content and content[-1] in [',', ']', '}', ' ', '\n', '\r']:
-                content = content[:-1].strip()
-            
-            # Normaliser les séparateurs d'objets
-            content = content.replace('}\n{', '},{').replace('}{', '},{')
-            content = content.replace('}\r\n{', '},{').replace('}\r{', '},{')
-            
-            # Assurer que le contenu est un tableau JSON valide
-            if not content:
+            if not lines:
                 logger.error("Fichier JSON vide")
                 return None
             
-            # Détecter et nettoyer le format du contenu JSON
-            if content:
-                # Détecter et transformer le format
-                if content.startswith('[') and content.endswith(']'):
-                    logger.info("Format détecté: Tableau JSON")
-                elif content.startswith('{') and content.endswith('}'):
-                    logger.info("Format détecté: Objet JSON unique")
-                    content = '[' + content + ']'
-                else:
-                    # Essayer de détecter une série d'objets JSON
-                    if content[0] == '{' or content.strip().startswith('{'):
-                        logger.info("Format détecté: Série d'objets JSON")
-                        # Nettoyer et transformer en tableau JSON valide
-                        content = '[' + content + ']'
-                    else:
-                        # Essayer de traiter comme des lignes JSON séparées
-                        logger.info("Format détecté: Lignes JSON séparées")
-                        lines = [line.strip() for line in content.split('\n') if line.strip()]
-                        content = '[' + ','.join(lines) + ']'
+            # Traiter chaque ligne individuellement
+            for line_number, line in enumerate(lines, 1):
+                # Nettoyer la ligne
+                cleaned_line = ''.join(c for c in line if c.isprintable() or c.isspace()).strip()
+                if not cleaned_line:
+                    continue
                 
-                logger.info("Transformation en tableau JSON effectuée")
-            
-            try:
-                # Essayer d'abord de charger le fichier entier comme un JSON unique
-                logger.info("Tentative de chargement du fichier comme JSON unique")
-                data = json.loads(content)
-                if isinstance(data, list):
-                    logger.info("Format détecté: Liste JSON")
-                    for item in data:
-                        if isinstance(item, dict):
-                            valid_records.append(flatten_json(item))
-                        else:
-                            logger.warning(f"Élément ignoré: {item} (type non supporté)")
-                elif isinstance(data, dict):
-                    logger.info("Format détecté: Objet JSON unique")
-                    valid_records.append(flatten_json(data))
-            except json.JSONDecodeError as e:
-                logger.info(f"Le fichier n'est pas un JSON unique, passage au traitement ligne par ligne. Erreur: {str(e)}")
-                # Si le fichier n'est pas un JSON unique, traiter ligne par ligne
-                line_number = 0
-                for line in content.split('\n'):
-                    line_number += 1
-                    is_valid, data, error_message = validate_json_line(line)
-                    
-                    if is_valid:
+                # Supprimer les caractères parasites
+                while any(cleaned_line.endswith(c) for c in [',', ']', '}', ' ']):
+                    cleaned_line = cleaned_line[:-1].strip()
+                
+                # Détecter si la ligne fait partie d'un objet JSON incomplet
+                if current_object:
+                    # Ajouter la ligne au current_object
+                    current_object += " " + cleaned_line
+                    # Vérifier si l'objet est complet
+                    try:
+                        data = json.loads(current_object)
                         if isinstance(data, dict):
                             valid_records.append(flatten_json(data))
-                        elif isinstance(data, list):
-                            for item in data:
-                                if isinstance(item, dict):
-                                    valid_records.append(flatten_json(item))
-                                else:
-                                    logger.warning(f"Ligne {line_number}: Élément ignoré (type non supporté)")
-                    else:
-                        if line.strip():  # Ne pas logger les lignes vides
-                            logger.error(f"Ligne {line_number}: {error_message}")
-                            invalid_lines.append((line_number, line.strip(), error_message))
+                        current_object = ""
+                        continue
+                    except json.JSONDecodeError:
+                        # L'objet n'est pas encore complet, continuer à la prochaine ligne
+                        continue
+                
+                # Essayer de parser la ligne comme JSON
+                is_valid, data, error_message = validate_json_line(cleaned_line)
+                
+                if is_valid:
+                    if isinstance(data, dict):
+                        valid_records.append(flatten_json(data))
+                    elif isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict):
+                                valid_records.append(flatten_json(item))
+                            else:
+                                logger.warning(f"Ligne {line_number}: Élément ignoré (type non supporté)")
+                else:
+                    # Vérifier si c'est le début d'un nouvel objet
+                    if cleaned_line.startswith('{') and not cleaned_line.endswith('}'):
+                        current_object = cleaned_line
+                        continue
+                    
+                    # Essayer de corriger le format JSON
+                    try:
+                        # Vérifier si la ligne fait partie d'un tableau JSON
+                        if cleaned_line.startswith('[') or cleaned_line.endswith(']'):
+                            cleaned_line = cleaned_line.strip('[]').strip()
+                        
+                        # Ajouter des accolades si nécessaire
+                        if not cleaned_line.startswith('{'):
+                            cleaned_line = '{' + cleaned_line
+                        if not cleaned_line.endswith('}'):
+                            cleaned_line = cleaned_line + '}'
+                        
+                        # Réessayer le parsing
+                        data = json.loads(cleaned_line)
+                        if isinstance(data, dict):
+                            valid_records.append(flatten_json(data))
+                        else:
+                            logger.warning(f"Ligne {line_number}: Format non supporté après correction")
+                    except json.JSONDecodeError:
+                        logger.error(f"Ligne {line_number}: {error_message}")
+                        invalid_lines.append((line_number, cleaned_line, error_message))
         
-        # Si nous avons des enregistrements valides, créer un DataFrame
+        # Créer le DataFrame si nous avons des enregistrements valides
         if valid_records:
             logger.info(f"Traitement terminé: {len(valid_records)} enregistrements valides trouvés")
             if invalid_lines:
                 logger.warning(f"{len(invalid_lines)} lignes invalides trouvées:")
                 for line_num, line, error in invalid_lines:
                     logger.warning(f"Ligne {line_num}: {error}\nContenu: {line[:100]}...")
-            return pd.DataFrame(valid_records)
+            
+            # Créer le DataFrame et gérer les types de données
+            df = pd.DataFrame(valid_records)
+            
+            # Convertir les colonnes en types appropriés
+            for col in df.columns:
+                # Essayer de convertir en numérique si possible
+                try:
+                    df[col] = pd.to_numeric(df[col], errors='raise')
+                except (ValueError, TypeError):
+                    # Essayer de convertir en datetime si possible
+                    try:
+                        df[col] = pd.to_datetime(df[col], errors='raise')
+                    except (ValueError, TypeError):
+                        # Garder comme string si pas numérique ni datetime
+                        pass
+            
+            return df
         else:
             logger.error("Aucun enregistrement valide trouvé dans le fichier")
             return None

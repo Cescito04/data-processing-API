@@ -47,101 +47,107 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if not file.processed %}
-                                        <a href="{% url 'process_file' file.pk %}" class="btn btn-sm btn-primary">
-                                            <i class="fas fa-cogs me-1"></i>Traiter
-                                        </a>
-                                    {% else %}
-                                        <div class="d-flex flex-wrap gap-2">
-                                            <div class="dropdown">
-                                                <button type="button" class="btn btn-sm btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                                    <i class="fas fa-download me-1"></i>Exporter
-                                                </button>
-                                                <ul class="dropdown-menu">
-                                                    <li><a class="dropdown-item" href="{% url 'export_file' file.pk %}?format=csv">CSV</a></li>
-                                                    <li><a class="dropdown-item" href="{% url 'export_file' file.pk %}?format=excel">Excel</a></li>
-                                                    <li><a class="dropdown-item" href="{% url 'export_file' file.pk %}?format=json">JSON</a></li>
-                                                </ul>
-                                            </div>
-                                            <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#previewModal{{ file.pk }}">
-                                                <i class="fas fa-eye me-1"></i>Aperçu
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% if not file.processed and file.file_type == 'xml' %}
+                                            <a href="{% url 'process_file' file.pk %}" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-cogs me-1"></i>Traiter
+                                            </a>
+                                        {% else %}
+                                            <a href="{% url 'process_file' file.pk %}" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-cogs me-1"></i>Traiter
+                                            </a>
+                                        {% endif %}
+                                        
+                                        <div class="dropdown">
+                                            <button type="button" class="btn btn-sm btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="fas fa-download me-1"></i>Exporter
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ file.pk }}">
-                                                <i class="fas fa-trash me-1"></i>Supprimer
-                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="{% url 'export_file' file.pk %}?format=csv">CSV</a></li>
+                                                <li><a class="dropdown-item" href="{% url 'export_file' file.pk %}?format=excel">Excel</a></li>
+                                                <li><a class="dropdown-item" href="{% url 'export_file' file.pk %}?format=json">JSON</a></li>
+                                            </ul>
                                         </div>
                                         
-                                        <!-- Modal de confirmation de suppression -->
-                                        <div class="modal fade" id="deleteModal{{ file.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ file.pk }}" aria-hidden="true">
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title" id="deleteModalLabel{{ file.pk }}">Confirmer la suppression</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <p>Êtes-vous sûr de vouloir supprimer le fichier "{{ file.original_filename }}" ?</p>
-                                                        <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Cette action est irréversible.</p>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                                        <form method="post" action="{% url 'delete_file' file.pk %}" class="d-inline">
-                                                            {% csrf_token %}
-                                                            <button type="submit" class="btn btn-danger">Supprimer</button>
-                                                        </form>
-                                                    </div>
+                                        <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#previewModal{{ file.pk }}">
+                                            <i class="fas fa-eye me-1"></i>Aperçu
+                                        </button>
+                                        
+                                        <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ file.pk }}">
+                                            <i class="fas fa-trash me-1"></i>Supprimer
+                                        </button>
+                                    </div>
+
+                                    <!-- Modal de confirmation de suppression -->
+                                    <div class="modal fade" id="deleteModal{{ file.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ file.pk }}" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="deleteModalLabel{{ file.pk }}">Confirmer la suppression</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p>Êtes-vous sûr de vouloir supprimer le fichier "{{ file.original_filename }}" ?</p>
+                                                    <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Cette action est irréversible.</p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                    <form method="post" action="{% url 'delete_file' file.pk %}" class="d-inline">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                                                    </form>
                                                 </div>
                                             </div>
                                         </div>
-                                        
-                                        <!-- Modal de prévisualisation -->
-                                        <div class="modal fade" id="previewModal{{ file.pk }}" tabindex="-1" aria-labelledby="previewModalLabel{{ file.pk }}" aria-hidden="true">
-                                            <div class="modal-dialog modal-lg">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title" id="previewModalLabel{{ file.pk }}">Aperçu - {{ file.original_filename }}</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <ul class="nav nav-tabs mb-3" role="tablist">
-                                                            <li class="nav-item" role="presentation">
-                                                                <button class="nav-link active" id="data-tab{{ file.pk }}" data-bs-toggle="tab" data-bs-target="#data{{ file.pk }}" type="button" role="tab" aria-controls="data{{ file.pk }}" aria-selected="true">
-                                                                    <i class="fas fa-table me-2"></i>Données
-                                                                </button>
-                                                            </li>
-                                                            <li class="nav-item" role="presentation">
-                                                                <button class="nav-link" id="stats-tab{{ file.pk }}" data-bs-toggle="tab" data-bs-target="#stats{{ file.pk }}" type="button" role="tab" aria-controls="stats{{ file.pk }}" aria-selected="false">
-                                                                    <i class="fas fa-chart-bar me-2"></i>Statistiques
-                                                                </button>
-                                                            </li>
-                                                        </ul>
-                                                        <div class="tab-content">
-                                                            <div class="tab-pane fade show active" id="data{{ file.pk }}" role="tabpanel" aria-labelledby="data-tab{{ file.pk }}">
-                                                                <div class="table-responsive">
-                                                                    <div id="previewContent{{ file.pk }}" class="preview-content"></div>
-                                                                </div>
+                                    </div>
+
+                                    <!-- Modal de prévisualisation -->
+                                    <div class="modal fade" id="previewModal{{ file.pk }}" tabindex="-1" aria-labelledby="previewModalLabel{{ file.pk }}" aria-hidden="true">
+                                        <div class="modal-dialog modal-lg">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="previewModalLabel{{ file.pk }}">Aperçu - {{ file.original_filename }}</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <ul class="nav nav-tabs mb-3" role="tablist">
+                                                        <li class="nav-item" role="presentation">
+                                                            <button class="nav-link active" id="data-tab{{ file.pk }}" data-bs-toggle="tab" data-bs-target="#data{{ file.pk }}" type="button" role="tab" aria-controls="data{{ file.pk }}" aria-selected="true">
+                                                                <i class="fas fa-table me-2"></i>Données
+                                                            </button>
+                                                        </li>
+                                                        <li class="nav-item" role="presentation">
+                                                            <button class="nav-link" id="stats-tab{{ file.pk }}" data-bs-toggle="tab" data-bs-target="#stats{{ file.pk }}" type="button" role="tab" aria-controls="stats{{ file.pk }}" aria-selected="false">
+                                                                <i class="fas fa-chart-bar me-2"></i>Statistiques
+                                                            </button>
+                                                        </li>
+                                                    </ul>
+                                                    <div class="tab-content">
+                                                        <div class="tab-pane fade show active" id="data{{ file.pk }}" role="tabpanel" aria-labelledby="data-tab{{ file.pk }}">
+                                                            <div class="table-responsive">
+                                                                <div id="previewContent{{ file.pk }}" class="preview-content"></div>
                                                             </div>
-                                                            <div class="tab-pane fade" id="stats{{ file.pk }}" role="tabpanel" aria-labelledby="stats-tab{{ file.pk }}">
-                                                                <div class="card">
-                                                                    <div class="card-body">
-                                                                        <h6 class="card-subtitle mb-3 text-muted">Statistiques descriptives</h6>
-                                                                        <dl class="row mb-0">
-                                                                            <dt class="col-sm-4">Valeurs manquantes :</dt>
-                                                                            <dd class="col-sm-8">
-                                                                                {% if file.missing_values %}
-                                                                                    <ul class="list-unstyled mb-0">
-                                                                                    {% for column, count in file.missing_values.items %}
-                                                                                        {% if count > 0 %}
-                                                                                            <li>{{ column }}: {{ count }}</li>
-                                                                                        {% endif %}
-                                                                                    {% endfor %}
-                                                                                    </ul>
-                                                                                {% else %}
-                                                                                    <span class="text-muted">Aucune valeur manquante</span>
-                                                                                {% endif %}
-                                                                            </dd>
-                                                                        </dl>
-                                                                    </div>
+                                                        </div>
+                                                        <div class="tab-pane fade" id="stats{{ file.pk }}" role="tabpanel" aria-labelledby="stats-tab{{ file.pk }}">
+                                                            <div class="card">
+                                                                <div class="card-body">
+                                                                    <h6 class="card-subtitle mb-3 text-muted">Statistiques descriptives</h6>
+                                                                    <dl class="row mb-0">
+                                                                        <dt class="col-sm-4">Valeurs manquantes :</dt>
+                                                                        <dd class="col-sm-8">
+                                                                            {% if file.missing_values %}
+                                                                                <ul class="list-unstyled mb-0">
+                                                                                {% for column, count in file.missing_values.items %}
+                                                                                    {% if count > 0 %}
+                                                                                        <li>{{ column }}: {{ count }}</li>
+                                                                                    {% endif %}
+                                                                                {% endfor %}
+                                                                                </ul>
+                                                                            {% else %}
+                                                                                <span class="text-muted">Aucune valeur manquante</span>
+                                                                            {% endif %}
+                                                                        </dd>
+                                                                    </dl>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -149,7 +155,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                         {% endfor %}

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<crimes>
+    <crime>
+        <id>1</id>
+        <date>2023-01-15T14:30:00</date>
+        <type>Vol</type>
+        <location>
+            <latitude>48.8566</latitude>
+            <longitude>2.3522</longitude>
+            <address>123 Rue de la Paix</address>
+            <city>Paris</city>
+        </location>
+        <description>Vol à l'étalage dans un magasin</description>
+        <status>Résolu</status>
+        <severity>Mineur</severity>
+    </crime>
+    <crime>
+        <id>2</id>
+        <date>2023-02-20T23:15:00</date>
+        <type>Vandalisme</type>
+        <location>
+            <latitude>48.8584</latitude>
+            <longitude>2.2945</longitude>
+            <address>45 Avenue des Champs-Élysées</address>
+            <city>Paris</city>
+        </location>
+        <description>Graffitis sur un bâtiment public</description>
+        <status>En cours</status>
+        <severity>Modéré</severity>
+    </crime>
+    <crime>
+        <id>3</id>
+        <date>2023-03-10T02:45:00</date>
+        <type>Agression</type>
+        <location>
+            <latitude>48.8738</latitude>
+            <longitude>2.2950</longitude>
+            <address>78 Boulevard Haussmann</address>
+            <city>Paris</city>
+        </location>
+        <description>Altercation physique devant un bar</description>
+        <status>En cours</status>
+        <severity>Majeur</severity>
+    </crime>
+</crimes>

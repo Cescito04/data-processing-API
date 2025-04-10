@@ -8,7 +8,7 @@ class DataFileUploadForm(forms.ModelForm):
         widgets = {
             'file': forms.FileInput(attrs={
                 'class': 'form-control',
-                'accept': '.csv,.json'
+                'accept': '.csv,.json,.xml'
             })
         }
 
