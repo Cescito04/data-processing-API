@@ -4,6 +4,8 @@
 
 {% block extra_js %}
 <script src="{% static 'js/preview.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/charts.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -74,154 +76,144 @@
                                             <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ file.pk }}">
                                                 <i class="fas fa-trash me-1"></i>Supprimer
                                             </button>
-                                        {% endif %}
-                                    </div>
 
-                                    {% if file.processed %}
-                                    <!-- Modal d'aperçu des statistiques -->
-                                    <div class="modal fade" id="previewModal{{ file.pk }}" tabindex="-1" aria-labelledby="previewModalLabel{{ file.pk }}" aria-hidden="true">
-                                        <div class="modal-dialog modal-xl">
-                                            <div class="modal-content">
-                                                <div class="modal-header bg-primary text-white">
-                                                    <h5 class="modal-title" id="previewModalLabel{{ file.pk }}">
-                                                        <i class="fas fa-chart-line me-2"></i>Analyse statistique - {{ file.original_filename }}
-                                                    </h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    <div class="row g-4">
-                                                        <!-- Carte d'informations générales -->
-                                                        <div class="col-md-4">
-                                                            <div class="card h-100 border-primary">
-                                                                <div class="card-header bg-primary text-white">
-                                                                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations générales</h6>
-                                                                </div>
-                                                                <div class="card-body">
-                                                                    <dl class="row mb-0">
-                                                                        <dt class="col-6"><i class="fas fa-file me-2"></i>Type :</dt>
-                                                                        <dd class="col-6">{{ file.file_type|upper }}</dd>
-                                                                        
-                                                                        <dt class="col-6"><i class="fas fa-list me-2"></i>Lignes :</dt>
-                                                                        <dd class="col-6">{{ file.row_count }}</dd>
-                                                                        
-                                                                        <dt class="col-6"><i class="fas fa-columns me-2"></i>Colonnes :</dt>
-                                                                        <dd class="col-6">{{ file.column_count }}</dd>
-                                                                    </dl>
-                                                                </div>
-                                                            </div>
+                                            <!-- Modal d'aperçu des statistiques -->
+                                            <div class="modal fade" id="previewModal{{ file.pk }}" tabindex="-1" aria-labelledby="previewModalLabel{{ file.pk }}" aria-hidden="true">
+                                                <div class="modal-dialog modal-xl">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header bg-primary text-white">
+                                                            <h5 class="modal-title" id="previewModalLabel{{ file.pk }}">
+                                                                <i class="fas fa-chart-line me-2"></i>Analyse statistique - {{ file.original_filename }}
+                                                            </h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                         </div>
-
-                                                        <!-- Carte des valeurs manquantes -->
-                                                        <div class="col-md-4">
-                                                            <div class="card h-100 border-warning">
-                                                                <div class="card-header bg-warning text-dark">
-                                                                    <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Valeurs manquantes</h6>
-                                                                </div>
-                                                                <div class="card-body">
-                                                                    {% if file.missing_values %}
-                                                                        <div class="table-responsive">
-                                                                            <table class="table table-sm table-hover">
-                                                                                <thead>
-                                                                                    <tr>
-                                                                                        <th>Colonne</th>
-                                                                                        <th>Manquants</th>
-                                                                                        <th>%</th>
-                                                                                    </tr>
-                                                                                </thead>
-                                                                                <tbody>
-                                                                                {% for column, count in file.missing_values.items %}
-                                                                                    {% if count > 0 %}
-                                                                                    <tr>
-                                                                                        <td>{{ column }}</td>
-                                                                                        <td>{{ count }}</td>
-                                                                                        <td>{{ count|multiply:100|divide:file.row_count|floatformat:1 }}%</td>
-                                                                                    </tr>
-                                                                                    {% endif %}
-                                                                                {% endfor %}
-                                                                                </tbody>
-                                                                            </table>
+                                                        <div class="modal-body">
+                                                            <div class="row g-4">
+                                                                <!-- Carte d'informations générales -->
+                                                                <div class="col-md-4">
+                                                                    <div class="card h-100 border-primary">
+                                                                        <div class="card-header bg-primary text-white">
+                                                                            <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations générales</h6>
                                                                         </div>
-                                                                    {% else %}
-                                                                        <p class="text-success mb-0">
-                                                                            <i class="fas fa-check-circle me-2"></i>Aucune valeur manquante
-                                                                        </p>
-                                                                    {% endif %}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <!-- Carte des statistiques descriptives -->
-                                                        <div class="col-md-4">
-                                                            <div class="card h-100 border-success">
-                                                                <div class="card-header bg-success text-white">
-                                                                    <h6 class="mb-0"><i class="fas fa-calculator me-2"></i>Statistiques descriptives</h6>
-                                                                </div>
-                                                                <div class="card-body">
-                                                                    {% if file.descriptive_stats %}
-                                                                        <div class="table-responsive">
-                                                                            <table class="table table-sm table-hover">
-                                                                                <thead>
-                                                                                    <tr>
-                                                                                        <th>Variable</th>
-                                                                                        <th>Moyenne</th>
-                                                                                        <th>Médiane</th>
-                                                                                        <th>Écart-type</th>
-                                                                                    </tr>
-                                                                                </thead>
-                                                                                <tbody>
-                                                                                {% for var, stats in file.descriptive_stats.items %}
-                                                                                    <tr>
-                                                                                        <td>{{ var }}</td>
-                                                                                        <td>{{ stats.mean|floatformat:2 }}</td>
-                                                                                        <td>{{ stats.median|floatformat:2 }}</td>
-                                                                                        <td>{{ stats.std|floatformat:2 }}</td>
-                                                                                    </tr>
-                                                                                {% endfor %}
-                                                                                </tbody>
-                                                                            </table>
+                                                                        <div class="card-body">
+                                                                            <dl class="row mb-0">
+                                                                                <dt class="col-6"><i class="fas fa-file me-2"></i>Type :</dt>
+                                                                                <dd class="col-6">{{ file.file_type|upper }}</dd>
+                                                                                
+                                                                                <dt class="col-6"><i class="fas fa-list me-2"></i>Lignes :</dt>
+                                                                                <dd class="col-6">{{ file.row_count }}</dd>
+                                                                                
+                                                                                <dt class="col-6"><i class="fas fa-columns me-2"></i>Colonnes :</dt>
+                                                                                <dd class="col-6">{{ file.column_count }}</dd>
+                                                                            </dl>
                                                                         </div>
-                                                                    {% else %}
-                                                                        <p class="text-muted mb-0">
-                                                                            <i class="fas fa-info-circle me-2"></i>Aucune variable numérique
-                                                                        </p>
-                                                                    {% endif %}
+                                                                    </div>
+                                                                </div>
+
+                                                                <!-- Carte des valeurs manquantes -->
+                                                                <div class="col-md-4">
+                                                                    <div class="card h-100 border-warning">
+                                                                        <div class="card-header bg-warning text-dark">
+                                                                            <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Valeurs manquantes</h6>
+                                                                        </div>
+                                                                        <div class="card-body">
+                                                                            {% if file.missing_values %}
+                                                                                <div class="table-responsive">
+                                                                                    <table class="table table-sm table-hover">
+                                                                                        <thead>
+                                                                                            <tr>
+                                                                                                <th>Colonne</th>
+                                                                                                <th>Manquants</th>
+                                                                                                <th>%</th>
+                                                                                            </tr>
+                                                                                        </thead>
+                                                                                        <tbody>
+                                                                                        {% for column, count in file.missing_values.items %}
+                                                                                            {% if count > 0 %}
+                                                                                            <tr>
+                                                                                                <td>{{ column }}</td>
+                                                                                                <td>{{ count }}</td>
+                                                                                                <td>{{ count|multiply:100|divide:file.row_count|floatformat:1 }}%</td>
+                                                                                            </tr>
+                                                                                            {% endif %}
+                                                                                        {% endfor %}
+                                                                                        </tbody>
+                                                                                    </table>
+                                                                                </div>
+                                                                            {% else %}
+                                                                                <p class="text-success mb-0">
+                                                                                    <i class="fas fa-check-circle me-2"></i>Aucune valeur manquante
+                                                                                </p>
+                                                                            {% endif %}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <!-- Carte des statistiques descriptives -->
+                                                                <div class="col-md-4">
+                                                                    <div class="card h-100 border-success">
+                                                                        <div class="card-header bg-success text-white">
+                                                                            <h6 class="mb-0"><i class="fas fa-calculator me-2"></i>Statistiques descriptives</h6>
+                                                                        </div>
+                                                                        <div class="card-body">
+                                                                            {% if file.descriptive_stats %}
+                                                                                <div class="table-responsive mb-3">
+                                                                                <div class="charts-container" style="height: 300px;"></div>
+                                                                                    <table class="table table-sm table-hover">
+                                                                                        <thead>
+                                                                                            <tr>
+                                                                                                <th>Variable</th>
+                                                                                                <th>Moyenne</th>
+                                                                                                <th>Médiane</th>
+                                                                                            </tr>
+                                                                                        </thead>
+                                                                                        <tbody>
+                                                                                            {% for stat in file.descriptive_stats %}
+                                                                                            <tr>
+                                                                                                <td>{{ stat.variable }}</td>
+                                                                                                <td>{{ stat.mean|floatformat:2 }}</td>
+                                                                                                <td>{{ stat.median|floatformat:2 }}</td>
+                                                                                            </tr>
+                                                                                            {% endfor %}
+                                                                                        </tbody>
+                                                                                    </table>
+                                                                                </div>
+                                                                            {% else %}
+                                                                                <p class="text-muted">Aucune statistique disponible</p>
+                                                                            {% endif %}
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                                        <i class="fas fa-times me-2"></i>Fermer
-                                                    </button>
-                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
 
-                                    <!-- Modal de confirmation de suppression -->
-                                    <div class="modal fade" id="deleteModal{{ file.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ file.pk }}" aria-hidden="true">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title" id="deleteModalLabel{{ file.pk }}">Confirmer la suppression</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    <p>Êtes-vous sûr de vouloir supprimer le fichier "{{ file.original_filename }}" ?</p>
-                                                    <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Cette action est irréversible.</p>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                                    <form method="post" action="{% url 'delete_file' file.pk %}" class="d-inline">
-                                                        {% csrf_token %}
-                                                        <button type="submit" class="btn btn-danger">Supprimer</button>
-                                                    </form>
+                                            <!-- Modal de confirmation de suppression -->
+                                            <div class="modal fade" id="deleteModal{{ file.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ file.pk }}" aria-hidden="true">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title" id="deleteModalLabel{{ file.pk }}">Confirmer la suppression</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <p>Êtes-vous sûr de vouloir supprimer le fichier "{{ file.original_filename }}" ?</p>
+                                                            <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Cette action est irréversible.</p>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                            <form method="post" action="{% url 'delete_file' file.pk %}" class="d-inline">
+                                                                {% csrf_token %}
+                                                                <button type="submit" class="btn btn-danger">Supprimer</button>
+                                                            </form>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        {% endif %}
                                     </div>
-                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
@@ -232,8 +224,7 @@
     {% else %}
         <div class="col-12">
             <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>Aucun fichier n'a été importé pour le moment.
-                <a href="{% url 'upload_file' %}" class="alert-link">Importer un fichier</a>
+                <i class="fas fa-info-circle me-2"></i>Aucun fichier n'a été importé.
             </div>
         </div>
     {% endif %}
