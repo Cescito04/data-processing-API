@@ -2,11 +2,14 @@ from django.shortcuts import render, redirect
 from django.views.generic import ListView
 from django.contrib import messages
 from django.http import JsonResponse, FileResponse, HttpResponse
+from django.core.cache import cache
+from django.core.cache import cache as django_cache
 from .models import DataFile
 from .forms import DataFileUploadForm, DataProcessingForm
 import pandas as pd
 import numpy as np
 import os
+import json
 
 def upload_file(request):
     if request.method == 'POST':
@@ -28,6 +31,87 @@ def upload_file(request):
     
     return render(request, 'data_processor/upload.html', {'form': form})
 
+def process_features(df_features, target_data, cleaned_data, processing_summary):
+    # Traitement des valeurs manquantes
+    if cleaned_data['handle_missing']:
+        for column in df_features.columns:
+            # Identifier le type de colonne
+            is_binary = df_features[column].dropna().isin([0, 1]).all()
+            is_numeric = pd.api.types.is_numeric_dtype(df_features[column])
+            
+            strategy = cleaned_data['missing_strategy']
+            
+            if is_binary:
+                # Variables binaires : remplacer par le mode (0 ou 1)
+                fill_value = df_features[column].mode()[0]
+                df_features[column] = df_features[column].fillna(fill_value).astype(int)
+            elif is_numeric:
+                # Variables numériques
+                if strategy == 'mean':
+                    fill_value = df_features[column].mean()
+                elif strategy == 'median':
+                    fill_value = df_features[column].median()
+                else:  # mode
+                    fill_value = df_features[column].mode()[0]
+                
+                # Conserver le type d'origine si possible
+                if pd.api.types.is_integer_dtype(df_features[column]):
+                    df_features[column] = df_features[column].fillna(round(fill_value)).astype(int)
+                else:
+                    df_features[column] = df_features[column].fillna(fill_value)
+            else:
+                # Variables catégorielles
+                fill_value = df_features[column].mode()[0]
+                df_features[column] = df_features[column].fillna(fill_value)
+        
+        processing_summary['missing_values'] = 'Traitées selon le type de variable'
+    
+    # Traitement des outliers (uniquement sur les features numériques)
+    if cleaned_data['handle_outliers']:
+        numeric_cols = df_features.select_dtypes(include=[np.number]).columns
+        for column in numeric_cols:
+            Q1 = df_features[column].quantile(0.25)
+            Q3 = df_features[column].quantile(0.75)
+            IQR = Q3 - Q1
+            lower_bound = Q1 - 1.5*IQR
+            upper_bound = Q3 + 1.5*IQR
+            
+            # Ne pas modifier les valeurs si elles sont dans les bornes
+            mask = (df_features[column] >= lower_bound) & (df_features[column] <= upper_bound)
+            df_features[column] = np.where(mask, df_features[column], 
+                                         df_features[column].clip(lower_bound, upper_bound))
+            
+            # Conserver le type d'origine
+            if pd.api.types.is_integer_dtype(df_features[column]):
+                df_features[column] = df_features[column].round().astype(int)
+        
+        processing_summary['outliers'] = 'Traitées avec la méthode IQR'
+    
+    # Normalisation Min-Max (évite les valeurs négatives)
+    if cleaned_data['normalize_data']:
+        numeric_cols = df_features.select_dtypes(include=[np.number]).columns
+        for column in numeric_cols:
+            min_val = df_features[column].min()
+            max_val = df_features[column].max()
+            if max_val != min_val:  # éviter la division par zéro
+                df_features[column] = (df_features[column] - min_val) / (max_val - min_val)
+                # Conserver le type si possible
+                if pd.api.types.is_integer_dtype(df_features[column]):
+                    df_features[column] = (df_features[column] * 100).round().astype(int)
+        
+        processing_summary['normalization'] = 'Normalisation Min-Max (0-1)'
+    
+    # Suppression des doublons (sur les features seulement)
+    if cleaned_data['remove_duplicates']:
+        initial_rows = len(df_features)
+        df_features = df_features.drop_duplicates()
+        processing_summary['duplicates'] = f'{initial_rows - len(df_features)} doublons supprimés'
+    
+    # Réintégrer la colonne cible si elle existe
+    if target_data is not None:
+        return pd.concat([df_features, target_data], axis=1)
+    return df_features
+
 def process_file(request, pk):
     data_file = DataFile.objects.get(pk=pk)
     
@@ -35,114 +119,138 @@ def process_file(request, pk):
         form = DataProcessingForm(request.POST)
         if form.is_valid():
             try:
-                # Chargement des données
-                if data_file.file_type == 'csv':
-                    df = pd.read_csv(data_file.file.path)
-                else:
-                    df = pd.read_json(data_file.file.path)
+                # Définir une taille de chunk plus grande pour réduire le nombre d'opérations d'E/S
+                CHUNK_SIZE = 50000  # Augmenté pour un meilleur équilibre mémoire/performance
                 
-                # Récupérer la colonne cible si spécifiée
-                target_column = form.cleaned_data.get('target_column')
-                if target_column and target_column in df.columns:
-                    target_data = df[target_column]
-                    df_features = df.drop(columns=[target_column])
-                else:
-                    target_data = None
-                    df_features = df
-                
+                # Initialiser le DataFrame final et le compteur de lignes
+                df_processed = None
                 processing_summary = {}
+                total_rows = 0
                 
-                # Traitement des valeurs manquantes
-                if form.cleaned_data['handle_missing']:
-                    for column in df_features.columns:
-                        # Identifier le type de colonne
-                        is_binary = df_features[column].dropna().isin([0, 1]).all()
-                        is_numeric = pd.api.types.is_numeric_dtype(df_features[column])
-                        
-                        strategy = form.cleaned_data['missing_strategy']
-                        
-                        if is_binary:
-                            # Variables binaires : remplacer par le mode (0 ou 1)
-                            fill_value = df_features[column].mode()[0]
-                            df_features[column] = df_features[column].fillna(fill_value).astype(int)
-                        elif is_numeric:
-                            # Variables numériques
-                            if strategy == 'mean':
-                                fill_value = df_features[column].mean()
-                            elif strategy == 'median':
-                                fill_value = df_features[column].median()
-                            else:  # mode
-                                fill_value = df_features[column].mode()[0]
-                            
-                            # Conserver le type d'origine si possible
-                            if pd.api.types.is_integer_dtype(df_features[column]):
-                                df_features[column] = df_features[column].fillna(round(fill_value)).astype(int)
-                            else:
-                                df_features[column] = df_features[column].fillna(fill_value)
-                        else:
-                            # Variables catégorielles
-                            fill_value = df_features[column].mode()[0]
-                            df_features[column] = df_features[column].fillna(fill_value)
-                    
-                    processing_summary['missing_values'] = 'Traitées selon le type de variable'
-                
-                # Traitement des outliers (uniquement sur les features numériques)
-                if form.cleaned_data['handle_outliers']:
-                    numeric_cols = df_features.select_dtypes(include=[np.number]).columns
-                    for column in numeric_cols:
-                        Q1 = df_features[column].quantile(0.25)
-                        Q3 = df_features[column].quantile(0.75)
-                        IQR = Q3 - Q1
-                        lower_bound = Q1 - 1.5*IQR
-                        upper_bound = Q3 + 1.5*IQR
-                        
-                        # Ne pas modifier les valeurs si elles sont dans les bornes
-                        mask = (df_features[column] >= lower_bound) & (df_features[column] <= upper_bound)
-                        df_features[column] = np.where(mask, df_features[column], 
-                                                     df_features[column].clip(lower_bound, upper_bound))
-                        
-                        # Conserver le type d'origine
-                        if pd.api.types.is_integer_dtype(df_features[column]):
-                            df_features[column] = df_features[column].round().astype(int)
-                    
-                    processing_summary['outliers'] = 'Traitées avec la méthode IQR'
-                
-                # Normalisation Min-Max (évite les valeurs négatives)
-                if form.cleaned_data['normalize_data']:
-                    numeric_cols = df_features.select_dtypes(include=[np.number]).columns
-                    for column in numeric_cols:
-                        min_val = df_features[column].min()
-                        max_val = df_features[column].max()
-                        if max_val != min_val:  # éviter la division par zéro
-                            df_features[column] = (df_features[column] - min_val) / (max_val - min_val)
-                            # Conserver le type si possible
-                            if pd.api.types.is_integer_dtype(df_features[column]):
-                                df_features[column] = (df_features[column] * 100).round().astype(int)
-                    
-                    processing_summary['normalization'] = 'Normalisation Min-Max (0-1)'
-                
-                # Suppression des doublons (sur les features seulement)
-                if form.cleaned_data['remove_duplicates']:
-                    initial_rows = len(df_features)
-                    df_features = df_features.drop_duplicates()
-                    processing_summary['duplicates'] = f'{initial_rows - len(df_features)} doublons supprimés'
-                
-                # Réintégrer la colonne cible si elle existe
-                if target_data is not None:
-                    df_processed = pd.concat([df_features, target_data], axis=1)
-                else:
-                    df_processed = df_features
-                
-                # Sauvegarde du fichier traité
-                processed_path = f'{data_file.file.path}_processed'
+                # Compter le nombre total de lignes pour la barre de progression
                 if data_file.file_type == 'csv':
-                    df_processed.to_csv(processed_path, index=False)
+                    total_rows = sum(1 for _ in open(data_file.file.path))
                 else:
-                    df_processed.to_json(processed_path)
+                    with open(data_file.file.path, 'r') as f:
+                        total_rows = sum(1 for line in f if line.strip())
                 
+                # Fonction pour traiter un chunk de données
+                def process_chunk(chunk_df, target_column=None, chunk_index=0):
+                    if target_column and target_column in chunk_df.columns:
+                        target_data = chunk_df[target_column]
+                        df_features = chunk_df.drop(columns=[target_column])
+                    else:
+                        target_data = None
+                        df_features = chunk_df.copy()
+                    
+                    # Calculer et mettre à jour la progression
+                    progress = int((chunk_index * CHUNK_SIZE) / total_rows * 100)
+                    django_cache.set(f'process_progress_{data_file.id}', progress, 300)
+                    
+                    return process_features(df_features, target_data, form.cleaned_data, processing_summary)
+                
+                # Chargement et traitement des données par chunks avec progression
+                if data_file.file_type == 'csv':
+                    for chunk_index, chunk in enumerate(pd.read_csv(data_file.file.path, chunksize=CHUNK_SIZE)):
+                        processed_chunk = process_chunk(chunk, form.cleaned_data.get('target_column'), chunk_index)
+                        if df_processed is None:
+                            df_processed = processed_chunk
+                        else:
+                            # Utiliser un fichier temporaire pour stocker les résultats intermédiaires
+                            temp_file = f'/tmp/processed_chunk_{data_file.id}_{chunk_index}.csv'
+                            processed_chunk.to_csv(temp_file, index=False)
+                            df_processed = pd.concat([df_processed, pd.read_csv(temp_file)])
+                            os.remove(temp_file)  # Nettoyer le fichier temporaire
+                else:
+                    # Pour les fichiers JSON, utiliser un itérateur de lignes avec progression
+                    chunk_data = []
+                    processed_rows = 0
+                    with open(data_file.file.path, 'r') as f:
+                        for line in f:
+                            line = line.strip()
+                            if line:
+                                try:
+                                    chunk_data.append(json.loads(line))
+                                    processed_rows += 1
+                                    if len(chunk_data) >= CHUNK_SIZE:
+                                        chunk_df = pd.DataFrame(chunk_data)
+                                        processed_chunk = process_chunk(chunk_df, form.cleaned_data.get('target_column'), processed_rows // CHUNK_SIZE)
+                                        
+                                        # Utiliser un fichier temporaire pour les résultats intermédiaires
+                                        temp_file = f'/tmp/processed_chunk_{data_file.id}_{processed_rows // CHUNK_SIZE}.csv'
+                                        if df_processed is None:
+                                            df_processed = processed_chunk
+                                        else:
+                                            processed_chunk.to_csv(temp_file, index=False)
+                                            df_processed = pd.concat([df_processed, pd.read_csv(temp_file)])
+                                            os.remove(temp_file)
+                                        
+                                        chunk_data = []
+                                        
+                                        # Mettre à jour la progression
+                                        progress = int(processed_rows / total_rows * 100)
+                                        django_cache.set(f'process_progress_{data_file.id}', progress, 300)
+                                        
+                                except json.JSONDecodeError as e:
+                                    raise Exception(f"Erreur de parsing JSON à la ligne: {line}. {str(e)}")
+                    
+                    # Traiter le dernier chunk s'il existe
+                    if chunk_data:
+                        chunk_df = pd.DataFrame(chunk_data)
+                        processed_chunk = process_chunk(chunk_df, form.cleaned_data.get('target_column'), processed_rows // CHUNK_SIZE)
+                        if df_processed is None:
+                            df_processed = processed_chunk
+                        else:
+                            temp_file = f'/tmp/processed_chunk_{data_file.id}_final.csv'
+                            processed_chunk.to_csv(temp_file, index=False)
+                            df_processed = pd.concat([df_processed, pd.read_csv(temp_file)])
+                            os.remove(temp_file)
+                
+                
+                # Sauvegarde du fichier traité avec mise en cache
+                from django.core.cache import cache
+                import tempfile
+                
+                # Utiliser un fichier temporaire pour la sauvegarde progressive
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    if data_file.file_type == 'csv':
+                        # Sauvegarder par morceaux pour économiser la mémoire
+                        for i in range(0, len(df_processed), CHUNK_SIZE):
+                            chunk = df_processed.iloc[i:i+CHUNK_SIZE]
+                            # Premier chunk : écrire avec l'en-tête
+                            if i == 0:
+                                chunk.to_csv(temp_file.name, mode='w', index=False)
+                            # Chunks suivants : ajouter sans en-tête
+                            else:
+                                chunk.to_csv(temp_file.name, mode='a', header=False, index=False)
+                            
+                            # Mettre à jour la progression dans le cache
+                            progress = int((i + len(chunk)) / len(df_processed) * 100)
+                            django_cache.set(f'process_progress_{data_file.id}', progress, 300)
+                    else:
+                        # Pour JSON, sauvegarder ligne par ligne
+                        with open(temp_file.name, 'w') as f:
+                            for i, record in enumerate(df_processed.to_dict('records')):
+                                json.dump(record, f)
+                                f.write('\n')
+                                
+                                # Mettre à jour la progression tous les 1000 enregistrements
+                                if i % 1000 == 0:
+                                    progress = int(i / len(df_processed) * 100)
+                                    django_cache.set(f'process_progress_{data_file.id}', progress, 300)
+                    
+                    # Déplacer le fichier temporaire vers l'emplacement final
+                    processed_path = f'{data_file.file.path}_processed'
+                    import shutil
+                    shutil.move(temp_file.name, processed_path)
+                
+                # Mettre à jour les métadonnées
                 data_file.processed = True
                 data_file.processing_summary = processing_summary
                 data_file.save()
+                
+                # Supprimer la progression du cache
+                django_cache.delete(f'process_progress_{data_file.id}')
                 
                 messages.success(request, 'Données traitées avec succès!')
                 return redirect('file_list')
