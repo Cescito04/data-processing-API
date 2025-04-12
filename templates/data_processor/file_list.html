@@ -224,7 +224,7 @@
     {% else %}
         <div class="col-12">
             <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>Aucun fichier n'a été importé.
+                <p class="mb-0"><i class="fas fa-info-circle me-2"></i>Aucun fichier n'a été importé. <a href="{% url 'upload_file' %}" class="text-primary">Importer un fichier</a>.</p>
             </div>
         </div>
     {% endif %}

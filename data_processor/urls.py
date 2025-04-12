@@ -8,4 +8,5 @@ urlpatterns = [
     path('preview/<int:pk>/', views.preview_file, name='preview_file'),
     path('export/<int:pk>/', views.export_file, name='export_file'),
     path('delete/<int:pk>/', views.delete_file, name='delete_file'),
+    path('clear/', views.clear_all_files, name='clear_all_files'),
 ]

@@ -274,6 +274,30 @@ class FileListView(ListView):
     ordering = ['-upload_date']
 
 
+def clear_all_files(request):
+    try:
+        # Récupérer tous les fichiers
+        data_files = DataFile.objects.all()
+        
+        # Supprimer chaque fichier physique et son fichier traité
+        for data_file in data_files:
+            if os.path.exists(data_file.file.path):
+                os.remove(data_file.file.path)
+            
+            processed_path = f'{data_file.file.path}_processed'
+            if os.path.exists(processed_path):
+                os.remove(processed_path)
+        
+        # Supprimer tous les enregistrements de la base de données
+        data_files.delete()
+        
+        messages.success(request, 'Tous les fichiers ont été supprimés avec succès!')
+    except Exception as e:
+        messages.error(request, f'Erreur lors de la suppression des fichiers: {str(e)}')
+    
+    return redirect('file_list')
+
+
 def upload_file(request):
     if request.method == 'POST':
         form = DataFileUploadForm(request.POST, request.FILES)
