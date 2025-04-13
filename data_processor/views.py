@@ -1,31 +1,79 @@
 from django.shortcuts import render, redirect
 from django.views.generic import ListView
 from django.contrib import messages
+from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse, FileResponse, HttpResponse
 from django.core.cache import cache
 from django.core.cache import cache as django_cache
 from .models import DataFile
-from .forms import DataFileUploadForm, DataProcessingForm
+from .forms import DataFileUploadForm, DataProcessingForm, UserRegistrationForm, LoginForm
 import pandas as pd
 import numpy as np
 import os
 import json
 
+def register(request):
+    if request.method == 'POST':
+        form = UserRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            messages.success(request, 'Inscription réussie ! Bienvenue sur notre plateforme.')
+            return redirect('dashboard')
+    else:
+        form = UserRegistrationForm()
+    return render(request, 'auth/register.html', {'form': form})
+
+def login_view(request):
+    if request.method == 'POST':
+        form = LoginForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            password = form.cleaned_data['password']
+            user = authenticate(username=email, password=password)
+            if user is not None:
+                login(request, user)
+                messages.success(request, f'Bienvenue {user.first_name} !')
+                return redirect('dashboard')
+            else:
+                messages.error(request, 'Email ou mot de passe incorrect.')
+    else:
+        form = LoginForm()
+    return render(request, 'auth/login.html', {'form': form})
+
+def logout_view(request):
+    logout(request)
+    messages.info(request, 'Vous avez été déconnecté avec succès.')
+    return redirect('login')
+
+@login_required
+def dashboard(request):
+    return render(request, 'auth/dashboard.html')
+
+@login_required
 def upload_file(request):
     if request.method == 'POST':
         form = DataFileUploadForm(request.POST, request.FILES)
         if form.is_valid():
-            file = request.FILES['file']
-            file_extension = file.name.split('.')[-1].lower()
-            
-            # Sauvegarder le type de fichier d'origine
-            data_file = form.save(commit=False)
-            data_file.original_file_type = file_extension
-            data_file.file_type = 'csv'  # Le type final sera toujours CSV après traitement
-            data_file.save()
-            
-            messages.success(request, 'Fichier importé avec succès.')
-            return redirect('file_list')
+            try:
+                file = request.FILES['file']
+                file_extension = file.name.split('.')[-1].lower()
+                
+                # Sauvegarder le type de fichier d'origine
+                data_file = form.save(commit=False)
+                data_file.original_file_type = file_extension
+                data_file.file_type = 'csv'  # Le type final sera toujours CSV après traitement
+                data_file.user = request.user  # Associer le fichier à l'utilisateur connecté
+                data_file.original_filename = file.name
+                data_file.save()
+                
+                messages.success(request, 'Fichier importé avec succès.')
+                return redirect('file_list')
+            except Exception as e:
+                messages.error(request, f'Erreur lors de l\'importation du fichier: {str(e)}')
+                return redirect('upload_file')
     else:
         form = DataFileUploadForm()
     
@@ -112,8 +160,13 @@ def process_features(df_features, target_data, cleaned_data, processing_summary)
         return pd.concat([df_features, target_data], axis=1)
     return df_features
 
+@login_required
 def process_file(request, pk):
-    data_file = DataFile.objects.get(pk=pk)
+    try:
+        data_file = DataFile.objects.get(pk=pk)
+    except DataFile.DoesNotExist:
+        messages.error(request, 'Fichier non trouvé.')
+        return redirect('file_list')
     
     if request.method == 'POST':
         form = DataProcessingForm(request.POST)
@@ -267,13 +320,17 @@ def process_file(request, pk):
     })
 
 
-class FileListView(ListView):
+class FileListView(LoginRequiredMixin, ListView):
     model = DataFile
     template_name = 'data_processor/file_list.html'
     context_object_name = 'files'
     ordering = ['-upload_date']
+    
+    def get_queryset(self):
+        return DataFile.objects.filter(user=self.request.user).order_by('-upload_date')
 
 
+@login_required
 def clear_all_files(request):
     try:
         # Récupérer tous les fichiers
@@ -298,6 +355,7 @@ def clear_all_files(request):
     return redirect('file_list')
 
 
+@login_required
 def upload_file(request):
     if request.method == 'POST':
         form = DataFileUploadForm(request.POST, request.FILES)
@@ -320,6 +378,7 @@ def upload_file(request):
                 
                 # Créer l'instance de DataFile
                 data_file = form.save(commit=False)
+                data_file.user = request.user  # Associer l'utilisateur connecté
                 data_file.original_filename = uploaded_file.name
                 
                 # Créer le chemin complet du fichier
@@ -415,9 +474,10 @@ def upload_file(request):
     })
 
 
+@login_required
 def preview_file(request, pk):
-    data_file = DataFile.objects.get(pk=pk)
     try:
+        data_file = DataFile.objects.get(pk=pk)
         # Charger les données
         if data_file.file_type == 'csv':
             df = pd.read_csv(data_file.file.path)
@@ -446,11 +506,12 @@ def preview_file(request, pk):
         return redirect('file_list')
 
 
+@login_required
 def export_file(request, pk):
-    data_file = DataFile.objects.get(pk=pk)
-    export_format = request.GET.get('format', 'csv')
-    
     try:
+        data_file = DataFile.objects.get(pk=pk)
+        export_format = request.GET.get('format', 'csv')
+        
         # Vérifier si le fichier a été traité
         if not data_file.processed:
             messages.error(request, 'Le fichier doit être traité avant l\'exportation.')
@@ -487,9 +548,10 @@ def export_file(request, pk):
         return redirect('file_list')
 
 
+@login_required
 def delete_file(request, pk):
-    data_file = DataFile.objects.get(pk=pk)
     try:
+        data_file = DataFile.objects.get(pk=pk)
         # Supprimer le fichier physique
         if os.path.exists(data_file.file.path):
             os.remove(data_file.file.path)

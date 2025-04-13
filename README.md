@@ -1,54 +1,102 @@
-# API de Traitement de Données
+# Application de Traitement de Données
 
-Une API robuste pour le traitement automatisé de fichiers de données (CSV, JSON, XML) avec interface web intégrée.
+Une application web Django pour le traitement et l'analyse de fichiers de données (CSV, JSON, XML) avec une interface d'administration personnalisée.
 
 ## Fonctionnalités Principales
 
 ### Gestion des Fichiers
 - Upload de fichiers CSV, JSON et XML
-- Validation automatique du format et de la structure des données
-- Prévisualisation des données avec statistiques descriptives
-- Export des données traitées en CSV, JSON ou Excel
+- Validation automatique du format et de la structure
+- Traitement des données avec détection des valeurs manquantes et aberrantes
+- Export des données traitées en différents formats
 - Interface utilisateur intuitive et responsive
 
-### Traitement des Données
-- Analyse automatique de la structure des fichiers
-- Détection des valeurs manquantes
-- Statistiques descriptives par colonne
-- Traitement personnalisé pour chaque type de fichier
+### Interface d'Administration
+- Tableau de bord personnalisé
+- Gestion des utilisateurs et des permissions
+- Suivi des fichiers traités avec indicateurs visuels
+- Statistiques détaillées sur les données
 
 ## Prérequis
 
-- Python 3.8 ou supérieur
-- Django 4.0 ou supérieur
-- Base de données SQLite (incluse)
+- Python 3.8+
+- Django 4.2+
+- Docker et Docker Compose (pour le déploiement)
 
 ## Installation
 
-1. Cloner le dépôt :
+### Installation avec Docker
+
+1. Cloner le repository :
 ```bash
-git clone [url-du-depot]
-cd data-processing-API
+git clone [url-du-repo]
+cd data_processing_app
 ```
 
-2. Créer un environnement virtuel :
+2. Construire et démarrer les conteneurs :
+```bash
+# Construire les images Docker
+docker-compose build
+
+# Démarrer les conteneurs en arrière-plan
+docker-compose up -d
+
+# Voir les logs des conteneurs
+docker-compose logs -f
+
+# Arrêter les conteneurs
+docker-compose down
+```
+
+3. Exécuter les migrations et créer un superutilisateur :
+```bash
+# Appliquer les migrations
+docker-compose exec web python manage.py migrate
+
+# Créer un superutilisateur
+docker-compose exec web python manage.py createsuperuser
+```
+
+4. Commandes Docker utiles :
+```bash
+# Accéder au shell du conteneur
+docker-compose exec web bash
+
+# Voir l'état des conteneurs
+docker-compose ps
+
+# Redémarrer les services
+docker-compose restart
+
+# Supprimer les conteneurs et les volumes
+docker-compose down -v
+```
+
+### Installation Locale
+
+1. Créer un environnement virtuel :
 ```bash
 python -m venv venv
-source venv/bin/activate  # Sur Unix/macOS
-venv\Scripts\activate    # Sur Windows
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate    # Windows
 ```
 
-3. Installer les dépendances :
+2. Installer les dépendances :
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Appliquer les migrations :
+3. Configurer la base de données :
 ```bash
 python manage.py migrate
 ```
 
-5. Lancer le serveur de développement :
+4. Créer un superutilisateur :
+```bash
+python manage.py createsuperuser
+```
+
+5. Lancer le serveur :
 ```bash
 python manage.py runserver
 ```
@@ -56,12 +104,12 @@ python manage.py runserver
 ## Structure du Projet
 
 ```
-data-processing-API/
-├── app/                    # Core application
+data_processing_app/
+├── app/                    # Application principale
 │   ├── models/            # Modèles de données
 │   ├── routes/            # Routes API
 │   ├── services/          # Services métier
-│   └── utils/             # Utilitaires
+│   └── utils/             # Utilitaires de traitement
 ├── data_processor/        # Application Django
 │   ├── forms.py           # Formulaires
 │   ├── models.py          # Modèles
@@ -75,45 +123,45 @@ data-processing-API/
 
 ## Utilisation
 
-1. Accéder à l'interface web via `http://localhost:8000`
-2. Utiliser le bouton "Importer un fichier" pour uploader un fichier
-3. Visualiser la liste des fichiers importés
-4. Traiter les fichiers avec le bouton "Traiter"
-5. Exporter les résultats dans le format souhaité
+1. Accéder à l'interface d'administration :
+   - URL : `http://localhost:8000/admin`
+   - Connectez-vous avec vos identifiants superutilisateur
 
-## Formats de Fichiers Supportés
+2. Upload et traitement de fichiers :
+   - Formats supportés : CSV, JSON, XML
+   - Taille maximale : 10MB
+   - Validation automatique des données
 
-### CSV
-- Séparateur : virgule (,)
-- Encodage : UTF-8
-- En-têtes de colonnes requis
+3. Visualisation des résultats :
+   - Statistiques descriptives
+   - Détection des anomalies
+   - Export des données traitées
 
-### JSON
-- Format : Array d'objets
-- Structure cohérente entre les objets
+## Fonctionnalités de l'Interface Admin
 
-### XML
-- Structure valide et bien formée
-- Namespace supporté
+- Gestion des fichiers uploadés
+- Suivi du statut de traitement
+- Statistiques détaillées :
+  - Nombre de lignes/colonnes
+  - Valeurs manquantes
+  - Valeurs aberrantes
+  - Résumé du traitement
 
 ## Sécurité
 
-- Validation des types de fichiers
-- Limite de taille des fichiers
-- Protection CSRF
-- Authentification requise pour l'accès
-
-## Tests
-
-Exécuter les tests unitaires :
-```bash
-python manage.py test
-```
+- Authentification requise
+- Validation des fichiers uploadés
+- Protection contre les attaques CSRF
+- Gestion des permissions utilisateurs
 
 ## Contribution
 
-1. Fork le projet
-2. Créer une branche (`git checkout -b feature/AmazingFeature`)
-3. Commit les changements (`git commit -m 'Add some AmazingFeature'`)
-4. Push vers la branche (`git push origin feature/AmazingFeature`)
-5. Ouvrir une Pull Request
+1. Forker le projet
+2. Créer une branche pour votre fonctionnalité
+3. Commiter vos changements
+4. Pousser vers la branche
+5. Créer une Pull Request
+
+## Licence
+
+Ce projet est sous licence MIT. Voir le fichier LICENSE pour plus de détails.

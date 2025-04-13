@@ -1,7 +1,9 @@
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 class DataFile(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='data_files', verbose_name='Utilisateur')
     file = models.FileField(upload_to='uploads/%Y/%m/%d/', verbose_name='Fichier')
     original_filename = models.CharField(max_length=255, verbose_name='Nom du fichier original')
     upload_date = models.DateTimeField(default=timezone.now, verbose_name='Date d\'importation')

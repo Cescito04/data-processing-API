@@ -1,5 +1,36 @@
 from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from .models import DataFile
+
+class UserRegistrationForm(UserCreationForm):
+    first_name = forms.CharField(max_length=30, required=True, label='Prénom')
+    last_name = forms.CharField(max_length=30, required=True, label='Nom')
+    email = forms.EmailField(max_length=254, required=True, label='Email')
+
+    class Meta:
+        model = User
+        fields = ('first_name', 'last_name', 'email', 'password1', 'password2')
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if User.objects.filter(email=email).exists():
+            raise ValidationError("Un utilisateur avec cet email existe déjà.")
+        return email
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.username = self.cleaned_data['email']
+        user.email = self.cleaned_data['email']
+        if commit:
+            user.save()
+        return user
+
+class LoginForm(forms.Form):
+    email = forms.EmailField(label='Email')
+    password = forms.CharField(label='Mot de passe', widget=forms.PasswordInput)
+
 
 class DataFileUploadForm(forms.ModelForm):
     class Meta:

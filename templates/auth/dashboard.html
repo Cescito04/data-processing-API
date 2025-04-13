@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Tableau de bord</h2>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <h3>Bienvenue, {{ user.first_name }} {{ user.last_name }} !</h3>
+                    <p class="lead">Que souhaitez-vous faire aujourd'hui ?</p>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Télécharger un fichier</h5>
+                                    <p class="card-text">Importez vos fichiers CSV, JSON ou XML pour traitement.</p>
+                                    <a href="{% url 'upload_file' %}" class="btn btn-primary">Télécharger</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Mes fichiers</h5>
+                                    <p class="card-text">Consultez et gérez vos fichiers importés.</p>
+                                    <a href="{% url 'file_list' %}" class="btn btn-primary">Voir les fichiers</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Traitement des données</h5>
+                                    <p class="card-text">Lancez le traitement de vos fichiers de données.</p>
+                                    <a href="{% url 'file_list' %}" class="btn btn-primary">Traiter</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

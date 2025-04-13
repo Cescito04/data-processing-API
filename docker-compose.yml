@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=data_processing_db
+      - POSTGRES_USER=data_processing_user
+      - POSTGRES_PASSWORD=data_processing_password
+    ports:
+      - "5434:5432"
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_DB_HOST=db
+      - DJANGO_DB_NAME=data_processing_db
+      - DJANGO_DB_USER=data_processing_user
+      - DJANGO_DB_PASSWORD=data_processing_password
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
