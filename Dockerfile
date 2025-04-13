@@ -24,8 +24,12 @@ COPY . .
 RUN mkdir -p /app/staticfiles /app/media \
     && chmod -R 755 /app/staticfiles /app/media
 
-# Collecter les fichiers statiques
-RUN python manage.py collectstatic --noinput
+# Créer un fichier .env temporaire pour la phase de build
+RUN echo "SECRET_KEY=temporary_key_for_build_phase" > .env.production \
+    && echo "DEBUG=False" >> .env.production \
+    && echo "DJANGO_ALLOWED_HOSTS=.onrender.com,localhost,127.0.0.1" >> .env.production \
+    && python manage.py collectstatic --noinput \
+    && rm .env.production
 
 # Exposer le port
 EXPOSE $PORT
