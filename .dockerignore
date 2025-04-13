@@ -1,0 +1,50 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.env.*
+!.env.example
+
+# Base de données
+*.sqlite3
+
+# Logs
+*.log
+
+# Dossiers de développement
+.git/
+.gitignore
+.idea/
+.vscode/
+
+# Fichiers de test
+**/tests/
+*.test.js
+*.spec.js
+
+# Fichiers de documentation
+docs/
+*.md
+
+# Fichiers de données
+data/
+media/
+
+# Fichiers de cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Fichiers Docker
+Dockerfile*
+docker-compose*.yml
+
+# Autres
+node_modules/
+*.swp
+.DS_Store

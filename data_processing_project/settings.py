@@ -12,15 +12,21 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+import environ
+
+env = environ.Env(
+    DEBUG=(bool, False)
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-_ihi%@cuf_u-(#3x&#rduqbhrfdk#vpwb*c$j^om!q2i%swuf("
+# Lecture du fichier .env
+environ.Env.read_env(os.path.join(BASE_DIR, '.env.production'))
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+SECRET_KEY = env('SECRET_KEY')
+DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = ['0.0.0.0', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
 # Application definition
 
@@ -72,14 +78,7 @@ WSGI_APPLICATION = "data_processing_project.wsgi.application"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DJANGO_DB_NAME", "data_processing_db"),
-        "USER": os.environ.get("DJANGO_DB_USER", "data_processing_user"),
-        "PASSWORD": os.environ.get("DJANGO_DB_PASSWORD", "data_processing_password"),
-        "HOST": os.environ.get("DJANGO_DB_HOST", "localhost"),
-        "PORT": os.environ.get("DJANGO_DB_PORT", "5432"),
-    }
+    'default': env.db()
 }
 
 
@@ -129,7 +128,16 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
 # Configuration pour Render
-if os.environ.get('RENDER'):
+if env.bool('RENDER', default=False):
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
     MEDIA_ROOT = '/opt/render/project/src/media'
 
 # Whitenoise configuration for serving static files
