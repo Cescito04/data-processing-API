@@ -29,6 +29,7 @@ RUN echo "SECRET_KEY=1wlyj8)niu#s!uc&nr2im-qd19g@8s94h^ns#ve(^itvp3u@-(" > .env.
     && echo "DEBUG=False" >> .env.production \
     && echo "DJANGO_ALLOWED_HOSTS=.onrender.com,localhost,127.0.0.1" >> .env.production \
     && echo "DATABASE_URL=postgresql://data_processing_db_xh95_user:bE3GU2pxEYkSL7zRMpLdweemp3F40aBX@dpg-cvu4bkbuibrs73eifv60-a/data_processing_db_xh95" >> .env.production \
+    && echo "RENDER=True" >> .env.production \
     && python manage.py collectstatic --noinput \
     && rm .env.production
 
